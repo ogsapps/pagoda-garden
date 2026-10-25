@@ -15,7 +15,7 @@ day/night cycle, weather and procedural ambient audio.
 | Location | `location` picks a city: the scene jumps to that city's local time and its current weather |
 | Weather | `clear` / `rain` / `snow` — picking one by hand leaves location mode, because a location always shows its real weather |
 | Ambience | `sound` (browsers need one click before audio can start), volume slider |
-| Corner card | top-left card shows the place, its real local time, the condition, the temperature and where it came from; click its header to collapse it |
+| Corner card | top-left card shows the place, its real local time, the condition, the temperature and where it came from; the `↻` button refetches that city's weather and re-syncs the sky to its clock; click the header to collapse it |
 
 Time, location, weather, volume, zoom and the corner card's state are remembered in
 `localStorage`. The controls fade out when you stop touching them; move the pointer to bring

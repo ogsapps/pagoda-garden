@@ -45,6 +45,13 @@
   #infoHead{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;
       background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;border-radius:0}
   #infoHead:hover{background:rgba(255,255,255,.07)}
+  #infoRefresh{background:transparent;border:0;color:#93a6b3;font:inherit;line-height:1;
+      padding:1px 3px;margin:0;cursor:pointer;border-radius:6px;display:inline-flex;align-items:center}
+  #infoRefresh:hover:not(:disabled){color:#fff;background:rgba(255,255,255,.12)}
+  #infoRefresh:disabled{opacity:.28;cursor:default}
+  #infoRefresh.spin{animation:info-spin .9s linear infinite}
+  @keyframes info-spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ #infoRefresh.spin{animation:none} }
   #infoPlace{flex:auto;color:#cfdae2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #infoClock{font-variant-numeric:tabular-nums;color:#f4e2b4}
   #info .chev{font-size:9px;color:#93a6b3;transition:transform .18s}
@@ -109,13 +116,14 @@
 </div>
 
 <div id="info">
-  <button id="infoHead" aria-expanded="false" title="Location, weather and time">
-    <span id="infoPlace">own time</span>
+  <div id="infoHead" role="button" tabindex="0" aria-expanded="false" title="Location, weather and time">
+    <span id="infoPlace">Own time</span>
     <span id="infoClock">--:--</span>
+    <button id="infoRefresh" aria-label="Refresh weather" title="Refresh weather now">&#8635;</button>
     <span class="chev" aria-hidden="true">&#9660;</span>
-  </button>
+  </div>
   <div id="infoBody">
-    <div class="row"><span id="infoCond">clear</span><span id="infoTemp"></span></div>
+    <div class="row"><span id="infoCond">Clear sky</span><span id="infoTemp"></span></div>
     <div class="row muted" id="infoMeta"></div>
     <div class="row muted" id="infoScene" hidden></div>
   </div>
@@ -1086,6 +1094,7 @@ const info = document.getElementById("info");
 const infoHead = document.getElementById("infoHead");
 const infoPlace = document.getElementById("infoPlace");
 const infoClock = document.getElementById("infoClock");
+const infoRefresh = document.getElementById("infoRefresh");
 const infoCond = document.getElementById("infoCond");
 const infoTemp = document.getElementById("infoTemp");
 const infoMeta = document.getElementById("infoMeta");
@@ -1128,6 +1137,22 @@ function updateInfo(){
   const differs = Math.abs(hour - realH) > 0.12;
   infoScene.hidden = !differs;
   if(differs) infoScene.textContent = "Scene " + fmtHour(hour) + (cycleOn ? " · cycling" : "");
+
+  const busy = fetchState === "loading" && !!place;
+  infoRefresh.disabled = !place;
+  infoRefresh.classList.toggle("spin", busy);
+  infoRefresh.title = place ? "Refresh this city now" : "Pick a location to refresh its weather";
+  infoHead.setAttribute("aria-expanded", String(!info.classList.contains("closed")));
+}
+
+function refreshNow(){
+  if(placeIx === null || fetchState === "loading") return;
+  if(!cycleOn){                                  // re-sync the sky to the city's real clock too
+    hour = localHour(PLACES[placeIx].tz);
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+  refreshPlaceWeather();
 }
 
 function setInfoOpen(open){
@@ -1137,6 +1162,16 @@ function setInfoOpen(open){
   savePrefs();
 }
 infoHead.addEventListener("click", () => setInfoOpen(info.classList.contains("closed")));
+infoHead.addEventListener("keydown", e => {
+  if(e.target !== infoHead) return;          // let the refresh button handle its own keys
+  if(e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  setInfoOpen(info.classList.contains("closed"));
+});
+infoRefresh.addEventListener("click", e => {
+  e.stopPropagation();                 // don't also collapse the card
+  refreshNow();
+});
 setInterval(updateInfo, 1000);
 
 // keep the chosen city's clock honest, and refresh its weather now and then
