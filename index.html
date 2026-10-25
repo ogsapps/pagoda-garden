@@ -63,7 +63,7 @@
   </div>
   <div class="grp">
     <button id="snd" aria-pressed="false">sound</button>
-    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6" aria-label="Volume">
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.3" aria-label="Volume">
   </div>
 </div>
 
@@ -611,16 +611,52 @@ function updateWeather(dt){
 }
 
 /* ------------------------------------------------------------------- audio */
-let ac = null, master = null, rainGain = null, windGain = null, padGain = null;
-let soundOn = false, vol = 0.6, padVoices = [], chordIx = 0, nextChordAt = 0, chimeTimer = 0;
-let wet = null;
+// A small ambient engine: washed pad, sub bass, sparse "music box" plucks through a
+// real convolution reverb, plus air and a rain bed. Everything runs under a compressor
+// and a soft high shelf, and the default level is deliberately low so it can play all day.
+let ac = null, master = null, mix = null, send = null;
+let rainGain = null, airGain = null, padGain = null, bassOsc = null;
+let padVoices = [], soundOn = false, vol = 0.3;
+let chordIx = -1, nextChordAt = 0, nextPluckAt = 0, schedTimer = 0;
 
-const CHORDS = [
-  [73.42, 110.00, 146.83, 185.00, 277.18],   // D  A  D  F# C#
-  [61.74, 123.47, 185.00, 246.94, 293.66],   // B  B  F# B  D
-  [49.00,  98.00, 146.83, 196.00, 246.94],   // G  G  D  G  B
-  [55.00, 110.00, 164.81, 220.00, 329.63]    // A  A  E  A  E
+const PROG = [
+  { bass: 73.42, pad: [146.83, 185.00, 220.00, 277.18, 329.63] },   // Dmaj9
+  { bass: 61.74, pad: [146.83, 185.00, 246.94, 293.66, 329.63] },   // Bm7
+  { bass: 49.00, pad: [146.83, 196.00, 246.94, 293.66, 392.00] },   // Gmaj7
+  { bass: 55.00, pad: [164.81, 220.00, 246.94, 329.63, 392.00] }    // Aadd9
 ];
+const SCALE = [293.66, 329.63, 369.99, 440.00, 493.88, 587.33, 659.25, 739.99];
+
+function makeImpulse(seconds, decay){
+  const len = Math.max(1, Math.floor(ac.sampleRate * seconds));
+  const buf = ac.createBuffer(2, len, ac.sampleRate);
+  for(let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch);
+    let lp = 0;
+    for(let i = 0; i < len; i++){
+      const t = i / len;
+      const n = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      lp = lp * 0.72 + n * 0.28;            // darkened tail
+      d[i] = lp;
+    }
+  }
+  return buf;
+}
+
+function makeNoise(seconds){
+  const len = Math.max(1, Math.floor(ac.sampleRate * seconds));
+  const buf = ac.createBuffer(1, len, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0;
+  for(let i = 0; i < len; i++){
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99765 * b0 + w * 0.0990460;
+    b1 = 0.96300 * b1 + w * 0.2965164;
+    b2 = 0.57000 * b2 + w * 1.0526913;
+    d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.19;
+  }
+  return buf;
+}
 
 function audioInit(){
   if(ac) return true;
@@ -632,93 +668,160 @@ function audioInit(){
   master.gain.value = 0;
   master.connect(ac.destination);
 
-  // simple stereo-ish space for the chimes
-  const dl = ac.createDelay(1.0);
-  dl.delayTime.value = 0.42;
-  const fb = ac.createGain();
-  fb.gain.value = 0.32;
-  dl.connect(fb); fb.connect(dl); dl.connect(master);
-  wet = dl;
+  const comp = ac.createDynamicsCompressor();
+  comp.threshold.value = -20; comp.knee.value = 18; comp.ratio.value = 3;
+  comp.attack.value = 0.02; comp.release.value = 0.4;
+  comp.connect(master);
 
-  // pink-ish noise source shared by rain and wind
-  const nb = ac.createBuffer(1, Math.floor(ac.sampleRate * 3), ac.sampleRate);
-  const d = nb.getChannelData(0);
-  let b0 = 0, b1 = 0, b2 = 0;
-  for(let i = 0; i < d.length; i++){
-    const w = Math.random() * 2 - 1;
-    b0 = 0.99765 * b0 + w * 0.0990460;
-    b1 = 0.96300 * b1 + w * 0.2965164;
-    b2 = 0.57000 * b2 + w * 1.0526913;
-    d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.19;
-  }
+  const shelf = ac.createBiquadFilter();
+  shelf.type = "highshelf"; shelf.frequency.value = 5200; shelf.gain.value = -4;
+  shelf.connect(comp);
 
-  // rain
-  const rs = ac.createBufferSource(); rs.buffer = nb; rs.loop = true;
-  const rh = ac.createBiquadFilter(); rh.type = "highpass"; rh.frequency.value = 900;
-  const rl = ac.createBiquadFilter(); rl.type = "lowpass";  rl.frequency.value = 6200;
-  rainGain = ac.createGain(); rainGain.gain.value = 0;
-  rs.connect(rh); rh.connect(rl); rl.connect(rainGain); rainGain.connect(master);
-  rs.start();
+  mix = ac.createGain();
+  mix.gain.value = 1;
+  mix.connect(shelf);
 
-  // wind
-  const ws = ac.createBufferSource(); ws.buffer = nb; ws.loop = true;
-  const wf = ac.createBiquadFilter(); wf.type = "lowpass"; wf.frequency.value = 380; wf.Q.value = 0.7;
-  windGain = ac.createGain(); windGain.gain.value = 0.10;
-  ws.connect(wf); wf.connect(windGain); windGain.connect(master);
-  ws.start();
-  const lfo = ac.createOscillator(); lfo.frequency.value = 0.07;
-  const lfoG = ac.createGain(); lfoG.gain.value = 130;
-  lfo.connect(lfoG); lfoG.connect(wf.frequency); lfo.start();
+  const conv = ac.createConvolver();
+  conv.buffer = makeImpulse(3.0, 2.6);
+  const revGain = ac.createGain();
+  revGain.gain.value = 0.55;
+  conv.connect(revGain); revGain.connect(mix);
+  send = ac.createGain();
+  send.gain.value = 1;
+  send.connect(conv);
 
-  // pad
-  const pf = ac.createBiquadFilter(); pf.type = "lowpass"; pf.frequency.value = 1100; pf.Q.value = 0.4;
-  padGain = ac.createGain(); padGain.gain.value = 0.62;
-  pf.connect(padGain); padGain.connect(master);
+  // pad: five voices, triangle plus a slightly detuned sine
+  const padFilter = ac.createBiquadFilter();
+  padFilter.type = "lowpass"; padFilter.frequency.value = 950; padFilter.Q.value = 0.3;
+  padGain = ac.createGain();
+  padGain.gain.value = 0.30;
+  padFilter.connect(padGain);
+  padGain.connect(mix);
+  const padSend = ac.createGain(); padSend.gain.value = 0.5;
+  padGain.connect(padSend); padSend.connect(send);
+
   padVoices = [];
   for(let i = 0; i < 5; i++){
-    const o = ac.createOscillator();
-    o.type = "sine";
-    o.frequency.value = CHORDS[0][i];
+    const a = ac.createOscillator(); a.type = "triangle";
+    const b = ac.createOscillator(); b.type = "sine";
+    a.frequency.value = b.frequency.value = PROG[0].pad[i];
     const g = ac.createGain();
-    g.gain.value = 0.055;
-    o.connect(g); g.connect(pf);
-    o.start();
-    padVoices.push(o);
+    g.gain.value = 0.05;
+    a.connect(g); b.connect(g); g.connect(padFilter);
+    a.start(); b.start();
+    padVoices.push({ a, b, g });
   }
-  nextChordAt = performance.now() + 17000;
+
+  // sub bass
+  bassOsc = ac.createOscillator();
+  bassOsc.type = "sine";
+  bassOsc.frequency.value = PROG[0].bass;
+  const bassGain = ac.createGain();
+  bassGain.gain.value = 0.10;
+  bassOsc.connect(bassGain); bassGain.connect(mix); bassGain.connect(send);
+  bassOsc.start();
+
+  // air
+  const airSrc = ac.createBufferSource(); airSrc.buffer = makeNoise(4); airSrc.loop = true;
+  const airF = ac.createBiquadFilter();
+  airF.type = "bandpass"; airF.frequency.value = 620; airF.Q.value = 0.6;
+  airGain = ac.createGain();
+  airGain.gain.value = 0.05;
+  airSrc.connect(airF); airF.connect(airGain); airGain.connect(mix);
+  airSrc.start();
+  const airLfo = ac.createOscillator(); airLfo.frequency.value = 0.05;
+  const airLfoG = ac.createGain(); airLfoG.gain.value = 220;
+  airLfo.connect(airLfoG); airLfoG.connect(airF.frequency); airLfo.start();
+
+  // rain bed
+  const rs = ac.createBufferSource(); rs.buffer = makeNoise(4); rs.loop = true;
+  const rh = ac.createBiquadFilter(); rh.type = "highpass"; rh.frequency.value = 1200;
+  const rl = ac.createBiquadFilter(); rl.type = "lowpass"; rl.frequency.value = 5200;
+  rainGain = ac.createGain();
+  rainGain.gain.value = 0;
+  rs.connect(rh); rh.connect(rl); rl.connect(rainGain); rainGain.connect(mix);
+  const rainSend = ac.createGain(); rainSend.gain.value = 0.25;
+  rainGain.connect(rainSend); rainSend.connect(send);
+  rs.start();
+
   return true;
 }
 
-function nextChord(){
+function pluck(freq, when){
   if(!ac) return;
-  chordIx = (chordIx + 1) % CHORDS.length;
-  const ch = CHORDS[chordIx];
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.13, when + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 3.6);
+
+  const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = freq;
+  const o2 = ac.createOscillator(); o2.type = "sine"; o2.frequency.value = freq * 2.005;
+  const g2 = ac.createGain();
+  g2.gain.setValueAtTime(0.0001, when);
+  g2.gain.exponentialRampToValueAtTime(0.035, when + 0.012);
+  g2.gain.exponentialRampToValueAtTime(0.0001, when + 1.2);
+
+  o.connect(g); o2.connect(g2);
+  g.connect(mix); g2.connect(mix);
+  g.connect(send); g2.connect(send);
+  o.start(when); o2.start(when);
+  o.stop(when + 3.8); o2.stop(when + 1.4);
+}
+
+function applyChord(when){
+  const ch = PROG[chordIx];
   for(let i = 0; i < padVoices.length; i++){
-    padVoices[i].frequency.setTargetAtTime(ch[i], ac.currentTime, 2.5);
+    const v = padVoices[i];
+    const f = ch.pad[i];
+    v.a.frequency.setTargetAtTime(f, when, 2.6);
+    v.b.frequency.setTargetAtTime(f * 1.0035, when, 2.6);
+  }
+  bassOsc.frequency.setTargetAtTime(ch.bass, when, 2.4);
+}
+
+function scheduler(){
+  if(!ac || !soundOn) return;
+  const now = ac.currentTime;
+  const horizon = now + 2.0;
+  if(nextChordAt < horizon){
+    const when = Math.max(now, nextChordAt);
+    chordIx = (chordIx + 1) % PROG.length;
+    applyChord(when);
+    nextChordAt = when + 11 + Math.random() * 3;
+  }
+  if(nextPluckAt < horizon){
+    const when = Math.max(now, nextPluckAt);
+    pluck(SCALE[Math.floor(Math.random() * SCALE.length)], when);
+    nextPluckAt = when + 2.8 + Math.random() * 5.5;
   }
 }
 
-function chime(){
-  if(!soundOn || !ac) return;
-  const notes = [587.33, 659.25, 739.99, 880.00, 987.77];
-  const f = notes[Math.floor(Math.random() * notes.length)];
+function startSound(){
+  if(!audioInit()) return;
+  ac.resume();
+  soundOn = true;
+  chordIx = Math.floor(Math.random() * PROG.length);
   const t = ac.currentTime;
-  const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = f;
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.055, t + 0.03);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
-  o.connect(g); g.connect(master); g.connect(wet);
-  o.start(t); o.stop(t + 3.6);
-  chimeTimer = setTimeout(chime, 7000 + Math.random() * 11000);
+  applyChord(t);
+  nextChordAt = t + 11;
+  nextPluckAt = t + 4 + Math.random() * 4;
+  clearInterval(schedTimer);
+  schedTimer = setInterval(scheduler, 250);
+  master.gain.setTargetAtTime(vol * 0.62, t, 0.9);
+}
+
+function stopSound(){
+  soundOn = false;
+  if(!ac) return;
+  clearInterval(schedTimer);
+  master.gain.setTargetAtTime(0, ac.currentTime, 0.6);
 }
 
 function updateAudio(){
   if(!ac) return;
   const t = ac.currentTime;
-  rainGain.gain.setTargetAtTime(rainAmt * 0.22, t, 0.7);
-  windGain.gain.setTargetAtTime(0.09 + snowAmt * 0.07 + rainAmt * 0.05, t, 0.9);
-  if(performance.now() > nextChordAt){ nextChord(); nextChordAt = performance.now() + 17000 + Math.random() * 9000; }
+  rainGain.gain.setTargetAtTime(rainAmt * 0.10, t, 0.8);
+  airGain.gain.setTargetAtTime(0.045 + snowAmt * 0.035 + rainAmt * 0.02, t, 1.0);
 }
 
 /* ---------------------------------------------------------------------- UI */
@@ -777,17 +880,14 @@ for(const b of wxBtns) b.addEventListener("click", () => { setWeather(b.dataset.
 sndBtn.addEventListener("click", async () => {
   if(!audioInit()) return;
   try { await ac.resume(); } catch(e){}
-  soundOn = !soundOn;
+  if(soundOn) stopSound(); else startSound();
   sndBtn.setAttribute("aria-pressed", String(soundOn));
   sndBtn.textContent = soundOn ? "sound on" : "sound";
-  master.gain.setTargetAtTime(soundOn ? vol * 0.85 : 0, ac.currentTime, 0.5);
-  if(soundOn){ clearTimeout(chimeTimer); chimeTimer = setTimeout(chime, 2200); }
-  else clearTimeout(chimeTimer);
 });
 
 volInput.addEventListener("input", () => {
   vol = parseFloat(volInput.value);
-  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.85, ac.currentTime, 0.2);
+  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.62, ac.currentTime, 0.2);
   savePrefs();
 });
 
@@ -799,7 +899,7 @@ zinBtn.addEventListener("click", () => nudgeZoom(1.18));
 zoutBtn.addEventListener("click", () => nudgeZoom(1 / 1.18));
 
 /* remember the last look so the page opens the way it was left */
-const PREF_KEY = "pagoda-garden.v1";
+const PREF_KEY = "pagoda-garden.v2";
 let currentWx = "clear";
 let prefTimer = 0;
 function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 600); }
