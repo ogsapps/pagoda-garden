@@ -251,7 +251,7 @@ function moodAt(h){
   const mix = (p, q) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t)];
   return {
     top: mix(a.top, b.top), bot: mix(a.bot, b.bot), tint: mix(a.tint, b.tint),
-    ta: lerp(a.ta, b.ta), night: lerp(a.night, b.night)
+    ta: lerp(a.ta, b.ta, t), night: lerp(a.night, b.night, t)
   };
 }
 const rgb = c => "rgb(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + ")";
