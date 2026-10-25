@@ -37,6 +37,23 @@
   #places button:hover{background:rgba(255,255,255,.12);color:#fff}
   #places button[aria-current="true"]{color:#f4e2b4;background:rgba(232,203,132,.12)}
   @media (max-width:620px){ #places{bottom:132px} }
+  #info{position:fixed;top:14px;left:14px;z-index:6;min-width:170px;
+      background:rgba(14,20,26,.55);border:1px solid rgba(255,255,255,.13);border-radius:13px;
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      color:#e9eff3;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;
+      box-shadow:0 10px 26px rgba(0,0,0,.28)}
+  #infoHead{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;
+      background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;border-radius:0}
+  #infoHead:hover{background:rgba(255,255,255,.07)}
+  #infoPlace{flex:auto;color:#cfdae2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #infoClock{font-variant-numeric:tabular-nums;color:#f4e2b4}
+  #info .chev{font-size:9px;color:#93a6b3;transition:transform .18s}
+  #info:not(.closed) .chev{transform:rotate(180deg)}
+  #infoBody{padding:0 11px 9px;display:flex;flex-direction:column;gap:3px}
+  #info.closed #infoBody{display:none}
+  #infoBody .row{display:flex;gap:6px;align-items:baseline}
+  #infoBody .muted{color:#93a6b3;font-size:11.5px;line-height:1.35}
+  @media (max-width:620px){ #info{top:10px;left:10px;min-width:150px} }
   #ui .lbl{color:#93a6b3;font-size:12px}
   .grp{display:flex;align-items:center;gap:8px}
   input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
@@ -78,7 +95,7 @@
   </div>
   <div class="grp">
     <button id="snd" aria-pressed="false">sound</button>
-    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.25" aria-label="Volume">
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.18" aria-label="Volume">
   </div>
 </div>
 
@@ -89,6 +106,19 @@
   <button data-place="2">Hawai&lsquo;i</button>
   <button data-place="3">Hong Kong</button>
   <button data-place="4">Amsterdam</button>
+</div>
+
+<div id="info">
+  <button id="infoHead" aria-expanded="false" title="Location, weather and time">
+    <span id="infoPlace">own time</span>
+    <span id="infoClock">--:--</span>
+    <span class="chev" aria-hidden="true">&#9660;</span>
+  </button>
+  <div id="infoBody">
+    <div class="row"><span id="infoCond">clear</span><span id="infoTemp"></span></div>
+    <div class="row muted" id="infoMeta"></div>
+    <div class="row muted" id="infoScene" hidden></div>
+  </div>
 </div>
 
 <script>
@@ -649,7 +679,7 @@ function updateWeather(dt){
 // and a soft high shelf, and the default level is deliberately low so it can play all day.
 let ac = null, master = null, mix = null, send = null;
 let rainGain = null, airGain = null, padGain = null, bassOsc = null;
-let padVoices = [], soundOn = false, vol = 0.25;
+let padVoices = [], soundOn = false, vol = 0.18;
 let chordIx = -1, nextChordAt = 0, nextPluckAt = 0, schedTimer = 0;
 
 const PROG = [
@@ -717,7 +747,7 @@ function audioInit(){
   const conv = ac.createConvolver();
   conv.buffer = makeImpulse(3.0, 2.6);
   const revGain = ac.createGain();
-  revGain.gain.value = 0.45;
+  revGain.gain.value = 0.36;
   conv.connect(revGain); revGain.connect(mix);
   send = ac.createGain();
   send.gain.value = 1;
@@ -727,7 +757,7 @@ function audioInit(){
   const padFilter = ac.createBiquadFilter();
   padFilter.type = "lowpass"; padFilter.frequency.value = 1500; padFilter.Q.value = 0.3;
   padGain = ac.createGain();
-  padGain.gain.value = 0.24;
+  padGain.gain.value = 0.17;
   padFilter.connect(padGain);
   padGain.connect(mix);
   const padSend = ac.createGain(); padSend.gain.value = 0.5;
@@ -750,7 +780,7 @@ function audioInit(){
   bassOsc.type = "sine";
   bassOsc.frequency.value = PROG[0].bass;
   const bassGain = ac.createGain();
-  bassGain.gain.value = 0.075;
+  bassGain.gain.value = 0.055;
   bassOsc.connect(bassGain); bassGain.connect(mix); bassGain.connect(send);
   bassOsc.start();
 
@@ -759,7 +789,7 @@ function audioInit(){
   const airF = ac.createBiquadFilter();
   airF.type = "bandpass"; airF.frequency.value = 620; airF.Q.value = 0.6;
   airGain = ac.createGain();
-  airGain.gain.value = 0.05;
+  airGain.gain.value = 0.04;
   airSrc.connect(airF); airF.connect(airGain); airGain.connect(mix);
   airSrc.start();
   const airLfo = ac.createOscillator(); airLfo.frequency.value = 0.05;
@@ -784,14 +814,14 @@ function pluck(freq, when){
   if(!ac) return;
   const g = ac.createGain();
   g.gain.setValueAtTime(0.0001, when);
-  g.gain.exponentialRampToValueAtTime(0.16, when + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.10, when + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, when + 3.6);
 
   const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = freq;
   const o2 = ac.createOscillator(); o2.type = "sine"; o2.frequency.value = freq * 2.005;
   const g2 = ac.createGain();
   g2.gain.setValueAtTime(0.0001, when);
-  g2.gain.exponentialRampToValueAtTime(0.035, when + 0.012);
+  g2.gain.exponentialRampToValueAtTime(0.02, when + 0.012);
   g2.gain.exponentialRampToValueAtTime(0.0001, when + 1.2);
 
   o.connect(g); o2.connect(g2);
@@ -840,7 +870,7 @@ function startSound(){
   nextPluckAt = t + 4 + Math.random() * 4;
   clearInterval(schedTimer);
   schedTimer = setInterval(scheduler, 250);
-  master.gain.setTargetAtTime(vol * 0.55, t, 0.9);
+  master.gain.setTargetAtTime(vol * 0.5, t, 0.9);
 }
 
 function stopSound(){
@@ -853,8 +883,8 @@ function stopSound(){
 function updateAudio(){
   if(!ac) return;
   const t = ac.currentTime;
-  rainGain.gain.setTargetAtTime(rainAmt * 0.10, t, 0.8);
-  airGain.gain.setTargetAtTime(0.045 + snowAmt * 0.035 + rainAmt * 0.02, t, 1.0);
+  rainGain.gain.setTargetAtTime(rainAmt * 0.08, t, 0.8);
+  airGain.gain.setTargetAtTime(0.035 + snowAmt * 0.025 + rainAmt * 0.015, t, 1.0);
 }
 
 /* ---------------------------------------------------------------------- UI */
@@ -915,6 +945,7 @@ for(const b of wxBtns) b.addEventListener("click", () => {
   wxAuto = false; cloudAmt = 0;
   setWeather(b.dataset.wx);
   savePrefs();
+  updateInfo();
 });
 
 /* ------------------------------------------------------------------ places */
@@ -929,6 +960,21 @@ const PLACES = [
   { name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" }
 ];
 let placeIx = null, placeTemp = null, cloudAmt = 0, wxAuto = true;
+let placeCode = null, fetchState = "idle", lastFetchAt = 0;
+
+function condLabel(code){
+  if(code === 0) return "clear sky";
+  if(code <= 2) return "partly cloudy";
+  if(code === 3) return "overcast";
+  if(code === 45 || code === 48) return "fog";
+  if(code >= 51 && code <= 57) return "drizzle";
+  if(code >= 61 && code <= 67) return "rain";
+  if(code >= 71 && code <= 77) return "snow";
+  if(code >= 80 && code <= 82) return "showers";
+  if(code === 85 || code === 86) return "snow showers";
+  if(code >= 95) return "thunderstorm";
+  return "—";
+}
 
 function localHour(tz){
   try{
@@ -957,19 +1003,27 @@ function updatePlaceLabel(){
 async function refreshPlaceWeather(){
   if(placeIx === null) return;
   const L = PLACES[placeIx];
+  fetchState = "loading";
+  updateInfo();
   try{
     const url = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon +
                 "&current=weather_code,temperature_2m,cloud_cover&timezone=auto";
     const r = await fetch(url, { cache: "no-store" });
-    if(!r.ok) return;
+    if(!r.ok) throw new Error("http " + r.status);
     const j = await r.json();
     const cur = (j && j.current) || {};
     wxAuto = true;
-    setWeather(weatherKind(Number(cur.weather_code)));
+    placeCode = Number.isFinite(cur.weather_code) ? Number(cur.weather_code) : null;
+    setWeather(weatherKind(placeCode));
     cloudAmt = Number.isFinite(cur.cloud_cover) ? clamp(cur.cloud_cover / 100, 0, 1) : 0;
     placeTemp = Number.isFinite(cur.temperature_2m) ? Math.round(cur.temperature_2m) : null;
-    updatePlaceLabel();
-  }catch(e){ /* offline: keep the clock, leave the weather alone */ }
+    fetchState = "ok";
+    lastFetchAt = Date.now();
+  }catch(e){
+    fetchState = "error";
+  }
+  updatePlaceLabel();
+  updateInfo();
 }
 
 function selectPlace(ix){
@@ -978,8 +1032,11 @@ function selectPlace(ix){
   if(placeIx === null){
     wxAuto = true;
     cloudAmt = 0;
+    placeCode = null;
+    fetchState = "idle";
     updatePlaceLabel();
   }else{
+    wxAuto = true;
     hour = localHour(PLACES[placeIx].tz);
     cycleOn = false;
     cycleBtn.setAttribute("aria-pressed", "false");
@@ -988,6 +1045,7 @@ function selectPlace(ix){
     updatePlaceLabel();
     refreshPlaceWeather();
   }
+  updateInfo();
   savePrefs();
 }
 
@@ -1015,6 +1073,64 @@ addEventListener("pointerdown", e => {
   if(!placesEl.hidden && !placesEl.contains(e.target) && e.target !== placeBtn) openPlaces(false);
 }, { passive: true });
 
+/* ------------------------------------------------------------- corner card */
+const info = document.getElementById("info");
+const infoHead = document.getElementById("infoHead");
+const infoPlace = document.getElementById("infoPlace");
+const infoClock = document.getElementById("infoClock");
+const infoCond = document.getElementById("infoCond");
+const infoTemp = document.getElementById("infoTemp");
+const infoMeta = document.getElementById("infoMeta");
+const infoScene = document.getElementById("infoScene");
+
+const pad2 = n => String(n).padStart(2, "0");
+function fmtHour(h){
+  const x = ((h % 24) + 24) % 24;
+  const hh = Math.floor(x), mm = Math.min(59, Math.round((x - hh) * 60));
+  return pad2(hh) + ":" + pad2(mm);
+}
+function ownHour(){
+  const d = new Date();
+  return d.getHours() + d.getMinutes() / 60;
+}
+
+function updateInfo(){
+  const place = placeIx === null ? null : PLACES[placeIx];
+  const realH = place ? localHour(place.tz) : ownHour();
+
+  infoPlace.textContent = place ? place.name : "own time";
+  infoClock.textContent = fmtHour(realH);
+
+  if(place){
+    infoCond.textContent = !wxAuto ? currentWx
+      : fetchState === "loading" ? "loading…"
+      : placeCode === null ? "—" : condLabel(placeCode);
+    infoTemp.textContent = placeTemp === null ? "" : Math.round(placeTemp) + "°C";
+  }else{
+    infoCond.textContent = currentWx;
+    infoTemp.textContent = "";
+  }
+
+  const age = lastFetchAt ? Math.round((Date.now() - lastFetchAt) / 60000) : null;
+  infoMeta.textContent = (!place || !wxAuto) ? "weather set by hand"
+    : fetchState === "error" ? "offline · last known"
+    : fetchState !== "ok" ? "fetching…"
+    : "open-meteo" + (age === null ? "" : " · " + (age < 1 ? "just now" : age + "m ago"));
+
+  const differs = Math.abs(hour - realH) > 0.12;
+  infoScene.hidden = !differs;
+  if(differs) infoScene.textContent = "scene " + fmtHour(hour) + (cycleOn ? " · cycling" : "");
+}
+
+function setInfoOpen(open){
+  info.classList.toggle("closed", !open);
+  infoHead.setAttribute("aria-expanded", String(open));
+  updateInfo();
+  savePrefs();
+}
+infoHead.addEventListener("click", () => setInfoOpen(info.classList.contains("closed")));
+setInterval(updateInfo, 1000);
+
 // keep the chosen city's clock honest, and refresh its weather now and then
 setInterval(() => {
   if(placeIx === null) return;
@@ -1038,7 +1154,7 @@ sndBtn.addEventListener("click", async () => {
 
 volInput.addEventListener("input", () => {
   vol = parseFloat(volInput.value);
-  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.55, ac.currentTime, 0.2);
+  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.5, ac.currentTime, 0.2);
   savePrefs();
 });
 
@@ -1050,14 +1166,15 @@ zinBtn.addEventListener("click", () => nudgeZoom(1.18));
 zoutBtn.addEventListener("click", () => nudgeZoom(1 / 1.18));
 
 /* remember the last look so the page opens the way it was left */
-const PREF_KEY = "pagoda-garden.v3";
+const PREF_KEY = "pagoda-garden.v4";
 let currentWx = "clear";
 let prefTimer = 0;
 function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 600); }
 function savePrefs(){
   try {
     localStorage.setItem(PREF_KEY, JSON.stringify({
-      hour, cycleOn, wx: currentWx, vol, zoom: +zoomTarget.toFixed(3), place: placeIx
+      hour, cycleOn, wx: currentWx, vol, zoom: +zoomTarget.toFixed(3), place: placeIx,
+      infoOpen: !info.classList.contains("closed")
     }));
   } catch(e){}
 }
@@ -1069,11 +1186,13 @@ function loadPrefs(){
   if(typeof p.cycleOn === "boolean") cycleOn = p.cycleOn;
   if(typeof p.vol === "number"){ vol = p.vol; volInput.value = String(vol); }
   if(Number.isFinite(p.zoom)){ zoom = zoomTarget = clamp(p.zoom, ZOOM_MIN, ZOOM_MAX); }
+  if(typeof p.infoOpen === "boolean"){ info.classList.toggle("closed", !p.infoOpen); }
   hourInput.value = hour.toFixed(2);
   cycleBtn.setAttribute("aria-pressed", String(cycleOn));
   updateClock();
   setWeather(typeof p.wx === "string" ? p.wx : "clear");
   if(Number.isInteger(p.place) && PLACES[p.place]) selectPlace(p.place);
+  updateInfo();
 }
 loadPrefs();
 setTimeout(() => { hint.style.opacity = "0"; }, 14000);
