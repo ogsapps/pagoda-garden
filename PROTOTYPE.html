@@ -1,0 +1,1722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Silhouette Pagoda Garden — layered parallax</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1116}
+  canvas{position:fixed;inset:0;display:block;touch-action:none}
+
+  /* ---- corner card (same markup/CSS contract as pagoda/relax.html) ---- */
+  #info{position:fixed;top:14px;left:14px;z-index:6;min-width:170px;
+      background:rgba(14,20,26,.55);border:1px solid rgba(255,255,255,.13);border-radius:13px;
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      color:#e9eff3;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;
+      box-shadow:0 10px 26px rgba(0,0,0,.28)}
+  #infoHead{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;
+      background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;text-align:left;border-radius:0}
+  #infoHead:hover{background:rgba(255,255,255,.07)}
+  #infoRefresh{background:transparent;border:0;color:#93a6b3;font:inherit;line-height:1;
+      padding:1px 3px;margin:0;cursor:pointer;border-radius:6px;display:inline-flex;align-items:center}
+  #infoRefresh:hover:not(:disabled){color:#fff;background:rgba(255,255,255,.12)}
+  #infoRefresh:disabled{opacity:.28;cursor:default}
+  #infoRefresh.spin{animation:info-spin .9s linear infinite}
+  @keyframes info-spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ #infoRefresh.spin{animation:none} }
+  #infoPlace{flex:auto;color:#cfdae2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #infoClock{font-variant-numeric:tabular-nums;color:#f4e2b4}
+  #info .chev{font-size:9px;color:#93a6b3;transition:transform .18s}
+  #info:not(.closed) .chev{transform:rotate(180deg)}
+  #infoBody{padding:0 11px 9px;display:flex;flex-direction:column;gap:3px}
+  #info.closed #infoBody{display:none}
+  #infoBody .row{display:flex;gap:6px;align-items:baseline}
+  #infoBody .muted{color:#93a6b3;font-size:11.5px;line-height:1.35}
+  @media (max-width:620px){ #info{top:10px;left:10px;min-width:150px} }
+
+  /* ---- bottom bar ---- */
+  #ui{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:15px;
+      background:rgba(14,20,26,.52);border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      color:#e9eff3;font:13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+      white-space:nowrap;width:max-content;max-width:calc(100vw - 20px);
+      flex-wrap:wrap;justify-content:center;z-index:7}
+  #ui .lbl{color:#93a6b3;font-size:12px}
+  .grp{display:flex;align-items:center;gap:8px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
+      background:rgba(255,255,255,.22);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+      background:#e8cb84;box-shadow:0 0 0 4px rgba(232,203,132,.14);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#e8cb84}
+  #hour{width:104px}
+  #clock{font-variant-numeric:tabular-nums;color:#cfdae2;min-width:42px;text-align:center}
+  button{font:inherit;color:#cfdae2;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+      border-radius:9px;padding:5px 9px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+  button:hover{background:rgba(255,255,255,.13);color:#fff}
+  button[aria-pressed="true"]{background:rgba(232,203,132,.18);border-color:rgba(232,203,132,.45);color:#f4e2b4}
+  #cities{gap:4px}
+  #cities button{padding:5px 8px}
+  @media (max-width:860px){
+    #ui{gap:6px 8px;padding:6px 9px;font-size:12px}
+    #hour{width:72px}
+    #cities button{padding:5px 6px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="info">
+  <div id="infoHead" role="button" tabindex="0" aria-expanded="false" title="Location, weather and time">
+    <span id="infoPlace">Own time</span>
+    <span id="infoClock">--:--</span>
+    <button id="infoRefresh" aria-label="Refresh weather" title="Refresh weather now">&#8635;</button>
+    <span class="chev" aria-hidden="true">&#9660;</span>
+  </div>
+  <div id="infoBody">
+    <div class="row"><span id="infoCond">Clear sky</span><span id="infoTemp"></span></div>
+    <div class="row muted" id="infoMeta"></div>
+    <div class="row muted" id="infoScene" hidden></div>
+  </div>
+</div>
+
+<div id="ui">
+  <div class="grp">
+    <span class="lbl">time</span>
+    <input id="hour" type="range" min="0" max="24" step="0.05" value="12" aria-label="Time of day">
+    <span id="clock">12:00</span>
+    <button id="cycle" aria-pressed="true" title="Slow day and night cycle">cycle</button>
+  </div>
+  <div class="grp" id="cities" role="group" aria-label="Location">
+    <button data-city="local" title="Use your own clock">own time</button>
+    <button data-city="0">Vancouver</button>
+    <button data-city="1">Toronto</button>
+    <button data-city="2">Hawai&lsquo;i</button>
+    <button data-city="3">Hong Kong</button>
+    <button data-city="4">Amsterdam</button>
+  </div>
+  <div class="grp" role="group" aria-label="Weather">
+    <button data-wx="clear" aria-pressed="true">clear</button>
+    <button data-wx="rain" aria-pressed="false">rain</button>
+    <button data-wx="snow" aria-pressed="false">snow</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===================================================================== setup */
+const cv = document.getElementById("scene");
+const ctx = cv.getContext("2d", { alpha: false });
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isFirefox = /firefox/i.test(navigator.userAgent);
+
+// The whole scene is authored in a 1000-unit-tall design space, so vertical
+// composition is identical on every screen and only the field of view changes.
+const U = 1000;
+const WL = 600;              // water line, design units
+const BASE = 7;              // design units / second at 1.0x drift
+
+let W = 0, H = 0, DPR = 1, S = 1, DW = 1200;
+let vignetteCv = null;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t)];
+const hex = c => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+const css = c => "rgb(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + ")";
+
+/* ================================================================ time / mood */
+// Copied verbatim from pagoda/relax.html: the shared time-of-day contract.
+let hour = 12;
+let cycleOn = true;
+
+// keyframes: sky top/bottom, full-screen tint (multiply), night amount
+const MOOD = [
+  { h: 0.0,  top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 },
+  { h: 4.6,  top: [24, 30, 54],   bot: [64, 52, 80],    tint: [64, 56, 104],  ta: 0.62, night: 0.85 },
+  { h: 6.4,  top: [152, 172, 206],bot: [244, 208, 182], tint: [255, 190, 150],ta: 0.20, night: 0.18 },
+  { h: 9.0,  top: [178, 210, 232],bot: [238, 244, 246], tint: [255, 250, 240],ta: 0.05, night: 0.00 },
+  { h: 13.0, top: [188, 220, 240],bot: [240, 246, 244], tint: [255, 255, 255],ta: 0.00, night: 0.00 },
+  { h: 16.8, top: [200, 214, 236],bot: [251, 236, 212], tint: [255, 226, 186],ta: 0.12, night: 0.00 },
+  { h: 18.6, top: [112, 100, 138],bot: [240, 164, 122], tint: [255, 152, 104],ta: 0.34, night: 0.24 },
+  { h: 20.4, top: [22, 32, 54],   bot: [34, 46, 70],    tint: [36, 50, 100],  ta: 0.72, night: 0.90 },
+  { h: 24.0, top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 }
+];
+
+function moodAt(h){
+  h = ((h % 24) + 24) % 24;
+  let i = 0;
+  while(i < MOOD.length - 2 && h > MOOD[i + 1].h) i++;
+  const a = MOOD[i], b = MOOD[i + 1];
+  const t = (h - a.h) / Math.max(1e-6, b.h - a.h);
+  return {
+    top: mix(a.top, b.top, t), bot: mix(a.bot, b.bot, t), tint: mix(a.tint, b.tint, t),
+    ta: lerp(a.ta, b.ta, t), night: lerp(a.night, b.night, t)
+  };
+}
+
+/* ================================================================ weather */
+let rain = [], snow = [], stars = [], flies = [], leaves = [];
+let rainAmt = 0, snowAmt = 0, rainTarget = 0, snowTarget = 0, cloudAmt = 0;
+let currentWx = "clear";
+
+function seedParticles(){
+  const area = Math.max(1, innerWidth * innerHeight);
+  const nRain = clamp(Math.round(area / 3400), 160, 520);
+  const nSnow = clamp(Math.round(area / 5200), 120, 420);
+  const nFlies = clamp(Math.round(area / 110000), 6, 16);
+
+  rain = [];
+  for(let i = 0; i < nRain; i++){
+    rain.push({ x: Math.random(), y: Math.random(), v: 0.90 + Math.random() * 0.60,
+                l: 0.020 + Math.random() * 0.030, k: 0.16 + Math.random() * 0.10 });
+  }
+  snow = [];
+  for(let i = 0; i < nSnow; i++){
+    snow.push({ x: Math.random(), y: Math.random(), v: 0.035 + Math.random() * 0.05,
+                r: 1 + Math.random() * 2.2, amp: 0.02 + Math.random() * 0.05,
+                ph: Math.random() * 6.283 });
+  }
+  stars = [];
+  for(let i = 0; i < 150; i++){
+    stars.push({ x: Math.random(), y: Math.random() * 0.55, r: 1 + Math.random() * 1.6,
+                 a: 0.35 + Math.random() * 0.65, ph: Math.random() * 6.283 });
+  }
+  flies = [];
+  for(let i = 0; i < nFlies; i++){
+    flies.push({ x: 0.10 + Math.random() * 0.80, y: 0.68 + Math.random() * 0.24,
+                 ph: Math.random() * 6.283, sp: 0.3 + Math.random() * 0.7 });
+  }
+  // Toronto's falling maple leaves; they sway but never rotate (see NOTES.md)
+  leaves = [];
+  for(let i = 0; i < 14; i++){
+    leaves.push({ x: Math.random(), y: Math.random(), v: 0.020 + Math.random() * 0.03,
+                  ph: Math.random() * 6.283, sp: 0.4 + Math.random() * 0.8,
+                  sc: 0.7 + Math.random() * 0.9, drift: 0.006 + Math.random() * 0.010 });
+  }
+}
+
+function updateWeather(dt){
+  rainAmt += (rainTarget - rainAmt) * Math.min(1, dt * 1.4);
+  snowAmt += (snowTarget - snowAmt) * Math.min(1, dt * 1.4);
+  if(rainAmt < 0.002) rainAmt = rainTarget === 0 ? 0 : rainAmt;
+  if(snowAmt < 0.002) snowAmt = snowTarget === 0 ? 0 : snowAmt;
+
+  const motion = reduceMotion ? 0.45 : 1;
+  for(let i = 0; i < rain.length; i++){
+    const r = rain[i];
+    r.y += r.v * dt * 1.35 * motion;
+    r.x -= r.k * dt * 0.55 * motion;
+    if(r.y > 1.05){ r.y = -0.05; r.x = Math.random(); }
+    if(r.x < -0.05) r.x = 1.05;
+  }
+  for(let i = 0; i < snow.length; i++){
+    const f = snow[i];
+    f.y += f.v * dt * motion;
+    if(!reduceMotion) f.x += Math.sin(f.ph + performance.now() * 0.0004) * f.amp * dt;
+    if(f.y > 1.05){ f.y = -0.05; f.x = Math.random(); }
+    if(f.x < -0.05) f.x = 1.05; else if(f.x > 1.05) f.x = -0.05;
+  }
+  for(let i = 0; i < leaves.length; i++){
+    const l = leaves[i];
+    l.y += l.v * dt * motion;
+    if(!reduceMotion) l.x += Math.sin(l.ph + performance.now() * 0.0003 * l.sp) * l.drift * dt;
+    if(l.y > 1.06){ l.y = -0.06; l.x = Math.random(); }
+    if(l.x < -0.06) l.x = 1.06; else if(l.x > 1.06) l.x = -0.06;
+  }
+}
+
+/* ============================================================ city art data */
+// ink = the single deep colour every silhouette is mixed out of; waterInk is
+// the water body colour; accent is the one warm/colour note a city gets.
+// Index 0 is the plain garden (own-time mode), 1..5 follow SPEC's table.
+const ART = [
+  { id: "garden",    ink: "#1b2b2c", waterInk: "#2a5561", accent: "#e8cb84", sand: "#b8a98c" },
+  { id: "vancouver", ink: "#122320", waterInk: "#25566b", accent: "#d9b26c", sand: "#a9a496" },
+  { id: "toronto",   ink: "#201a19", waterInk: "#2c4a63", accent: "#e0a63c", sand: "#b9a98c" },
+  { id: "hawaii",    ink: "#1b1719", waterInk: "#2b6a74", accent: "#e0576f", sand: "#c7b184" },
+  { id: "hongkong",  ink: "#0f2024", waterInk: "#1d4450", accent: "#e0543f", sand: "#9aa3a2" },
+  { id: "amsterdam", ink: "#231b18", waterInk: "#2d5044", accent: "#c95a8f", sand: "#b09a83" }
+];
+
+// The five real places, copied from relax.html (card + clocks + Open-Meteo).
+const PLACES = [
+  { name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
+  { name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
+  { name: "Hawai'i",   lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu" },
+  { name: "Hong Kong", lat: 22.3193, lon: 114.1694,  tz: "Asia/Hong_Kong" },
+  { name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" }
+];
+
+/* ======================================================== hand-authored shapes
+   Everything below is explicit point data in design units. x is either an
+   absolute coordinate or a 0..1 fraction across the repeating tile; y is
+   absolute (0 = top of sky, 1000 = bottom of screen).                             */
+
+// three-tier pagoda, base centre at (0,0), spire at y=-236. The eave tips sit
+// *above* each wall top (upturned corners) and overhang by 30 units, which is
+// the shape that reads as stacked pagoda roofs instead of fir branches.
+const PAGODA = [
+  [36, 2], [36, -10], [22, -10], [22, -44], [52, -54], [18, -70], [18, -104],
+  [45, -114], [14, -130], [14, -164], [38, -174], [0, -196], [4, -196],
+  [4, -226], [0, -236], [-4, -226], [-4, -196], [-38, -174], [-14, -164],
+  [-14, -130], [-45, -114], [-18, -104], [-18, -70], [-52, -54], [-22, -44],
+  [-22, -10], [-36, -10], [-36, 2]
+];
+
+// torii gate, base at (0,0), 78 units tall (four subpaths)
+const TORII = [
+  [[-23, 0], [-14, 0], [-14, -70], [-23, -70]],
+  [[14, 0], [23, 0], [23, -70], [14, -70]],
+  [[-32, -52], [32, -52], [32, -61], [-32, -61]],
+  [[-44, -62], [-37, -78], [37, -78], [44, -62], [39, -57], [-39, -57]]
+];
+
+// CN Tower, base at (0,0): thin shaft, pod, SkyPod, antenna
+const CN = [
+  [5, 0], [4, -60], [3, -150], [3, -196], [13, -205], [23, -213], [26, -222],
+  [20, -230], [10, -235], [4, -236], [3, -250], [3, -258], [8, -262], [10, -270],
+  [9, -278], [3, -280], [2.2, -284], [2.2, -300], [1.5, -310], [1.5, -330],
+  [0.8, -344], [0, -352], [-0.8, -344], [-1.5, -330], [-1.5, -310], [-2.2, -300],
+  [-2.2, -284], [-3, -280], [-9, -278], [-10, -270], [-8, -262], [-3, -258],
+  [-3, -250], [-4, -236], [-10, -235], [-20, -230], [-26, -222], [-23, -213],
+  [-13, -205], [-3, -196], [-3, -150], [-4, -60], [-5, 0]
+];
+
+// whale fluke breaking the surface, centre at (0,0)
+const FLUKE = [
+  [0, 2], [-3, -2], [-9, -7], [-14, -13], [-15, -17], [-11, -16], [-5, -10],
+  [0, -7], [5, -10], [11, -16], [15, -17], [14, -13], [9, -7], [3, -2]
+];
+
+// junk boat with three battened sails, deck at (0,0)
+const JUNK = [
+  [[-30, 0], [30, 0], [24, -7], [-22, -7]],                       // hull
+  [[-6, -7], [-6, -46], [-2, -52], [2, -52], [2, -7]],            // fore sail
+  [[3, -7], [3, -40], [8, -48], [13, -40], [13, -7]],             // main sail
+  [[14, -7], [14, -30], [18, -35], [21, -30], [21, -7]]           // mizzen
+];
+
+// outrigger canoe, waterline at (0,0)
+const CANOE = [
+  [[-26, 0], [26, 0], [20, -6], [-20, -6]],
+  [[-6, -6], [-6, -16], [8, -16], [8, -6]],
+  [[-22, -2], [4, -2], [4, -5], [-22, -5]]
+];
+
+// canal boat for Amsterdam, deck at (0,0)
+const BOAT = [
+  [[-24, 0], [24, 0], [19, -6], [-19, -6]],
+  [[-12, -6], [-12, -16], [10, -16], [14, -6]],
+  [[-2, -16], [-2, -22], [4, -22], [4, -16]]
+];
+
+// maple canopy, normalised to a 1-unit radius, trunk drawn separately
+const CANOPY = [
+  [0, -0.10], [-0.30, -0.22], [-0.52, -0.18], [-0.66, -0.36], [-0.58, -0.56],
+  [-0.70, -0.70], [-0.52, -0.80], [-0.40, -0.96], [-0.18, -0.92], [0, -1.02],
+  [0.18, -0.92], [0.40, -0.96], [0.52, -0.80], [0.70, -0.70], [0.58, -0.56],
+  [0.66, -0.36], [0.52, -0.18], [0.30, -0.22]
+];
+
+// soft shoreline under the garden; the bump at 0.385 is the pagoda's mound
+const SHORE_N = [
+  [0, 706], [0.04, 700], [0.08, 704], [0.12, 697], [0.16, 702], [0.20, 696],
+  [0.24, 700], [0.28, 697], [0.31, 692], [0.34, 687], [0.37, 683], [0.385, 681],
+  [0.40, 683], [0.43, 687], [0.46, 692], [0.49, 697], [0.52, 696], [0.55, 702],
+  [0.58, 697], [0.61, 703], [0.65, 697], [0.68, 702], [0.72, 696], [0.76, 701],
+  [0.80, 695], [0.84, 700], [0.88, 694], [0.92, 699], [0.96, 695], [1, 700]
+];
+
+// near foreground grass edge, roughly y=888; tufts are added separately
+const NEAR_EDGE_N = [
+  [0, 906], [0.015, 888], [0.03, 898], [0.05, 880], [0.065, 892], [0.08, 884],
+  [0.10, 896], [0.12, 886], [0.14, 900], [0.17, 888], [0.20, 898], [0.23, 886],
+  [0.26, 900], [0.29, 890], [0.32, 898], [0.35, 886], [0.38, 898], [0.41, 888],
+  [0.44, 900], [0.47, 890], [0.50, 898], [0.53, 886], [0.56, 900], [0.59, 890],
+  [0.62, 900], [0.65, 888], [0.68, 898], [0.71, 886], [0.74, 900], [0.77, 888],
+  [0.80, 898], [0.83, 886], [0.86, 900], [0.89, 888], [0.92, 898], [0.95, 886],
+  [0.98, 896], [1, 906]
+];
+
+// grass tufts along the foreground edge (x fraction, height, lean)
+const TUFTS = [
+  [0.035, 26, -3], [0.09, 20, 2], [0.145, 30, -2], [0.21, 22, 3], [0.275, 28, -3],
+  [0.335, 18, 2], [0.40, 26, -2], [0.465, 20, 3], [0.53, 24, -3], [0.60, 18, 2],
+  [0.665, 28, -2], [0.73, 22, 3], [0.795, 26, -3], [0.86, 20, 2], [0.925, 26, -2],
+  [0.975, 18, 3]
+];
+
+// the garden's pond and the stepping path from the pagoda toward the torii
+const POND_N = [
+  [0.487, 720], [0.497, 708], [0.520, 702], [0.548, 701], [0.572, 706],
+  [0.580, 718], [0.570, 730], [0.540, 735], [0.508, 732]
+];
+const PATH_TOP_N = [
+  [0.392, 700], [0.460, 708], [0.540, 714], [0.620, 720],
+  [0.700, 724], [0.755, 727], [0.795, 729]
+];
+
+/* ---------------------------------------------------------- path utilities */
+function pathOf(pts){
+  const p = new Path2D();
+  p.moveTo(pts[0][0], pts[0][1]);
+  for(let i = 1; i < pts.length; i++) p.lineTo(pts[i][0], pts[i][1]);
+  p.closePath();
+  return p;
+}
+function pathMulti(list){
+  const p = new Path2D();
+  for(const pts of list){
+    p.moveTo(pts[0][0], pts[0][1]);
+    for(let i = 1; i < pts.length; i++) p.lineTo(pts[i][0], pts[i][1]);
+    p.closePath();
+  }
+  return p;
+}
+const nx = pts => pts.map(p => [p[0] * DW, p[1]]);          // fraction across tile -> units
+const tr = (pts, x, y, sc) => pts.map(p => [x + p[0] * sc, y + p[1] * sc]);
+const land = (top, bottom) => top.concat([[DW, bottom], [0, bottom]]);
+function pathPts(){
+  const top = nx(PATH_TOP_N);
+  const bot = top.slice().reverse().map(p => [p[0], p[1] + 9]);
+  return top.concat(bot);
+}
+function pondPts(){ return nx(POND_N); }
+
+function shoreYAt(f){
+  for(let i = 1; i < SHORE_N.length; i++){
+    if(f <= SHORE_N[i][0]){
+      const a = SHORE_N[i - 1], b = SHORE_N[i];
+      const t = (f - a[0]) / Math.max(1e-6, b[0] - a[0]);
+      return lerp(a[1], b[1], t);
+    }
+  }
+  return SHORE_N[SHORE_N.length - 1][1];
+}
+
+/* -------------------------------------------------------------- flora shapes */
+function coniferPts(x, y, h, w){
+  const hw = w / 2;
+  const right = [
+    [x + hw, y],
+    [x + hw * 0.34, y - h * 0.30],
+    [x + hw * 0.74, y - h * 0.33],
+    [x + hw * 0.26, y - h * 0.61],
+    [x + hw * 0.60, y - h * 0.64],
+    [x + hw * 0.16, y - h * 0.89],
+    [x + hw * 0.24, y - h * 0.93],
+    [x, y - h]
+  ];
+  const left = right.slice(0, -1).reverse().map(p => [2 * x - p[0], p[1]]);
+  return right.concat(left);
+}
+function canopyPts(x, y, r, sq){
+  const sys = sq || 1;
+  return CANOPY.map(p => [x + p[0] * r, y + p[1] * r * sys]);
+}
+function trunkPts(x, y, w, h){
+  return [[x - w / 2, y], [x + w / 2, y], [x + w / 2 - 1, y - h], [x - w / 2 + 1, y - h]];
+}
+function palmPts(x, y, h, lean){
+  const L = lean * h * 0.24;
+  const topX = x + L;
+  const out = [];
+  out.push([
+    [x - 7, y], [x + 7, y],
+    [x + L * 0.42 + 3.6, y - h * 0.36],
+    [x + L * 0.78 + 2.8, y - h * 0.72],
+    [topX + 2.4, y - h * 0.95], [topX, y - h], [topX - 2.4, y - h * 0.96],
+    [x + L * 0.78 - 2.8, y - h * 0.72],
+    [x + L * 0.42 - 3.6, y - h * 0.36]
+  ]);
+  const dirs = [
+    [-1.00, -0.22], [-0.82, 0.16], [-0.44, 0.44], [-0.12, -0.10],
+    [0.22, -0.12], [0.52, 0.10], [0.88, 0.34], [0.48, 0.52], [-0.56, 0.52]
+  ];
+  const fr = h * 0.30;
+  for(const [dx, dy] of dirs){
+    out.push([
+      [topX, y - h + 1],
+      [topX + dx * fr * 0.46, y - h + dy * fr * 0.24 - 11],
+      [topX + dx * fr, y - h + dy * fr],
+      [topX + dx * fr * 0.54, y - h + dy * fr * 0.58 + 9]
+    ]);
+  }
+  return out;
+}
+function rockPts(x, y, w, h){
+  return [
+    [x - w / 2, y], [x - w * 0.42, y - h * 0.55], [x - w * 0.16, y - h * 0.86],
+    [x + w * 0.06, y - h], [x + w * 0.34, y - h * 0.72], [x + w * 0.48, y - h * 0.30],
+    [x + w / 2, y]
+  ];
+}
+function towerPts(x, y, w, h, crown){
+  // x = left edge, y = base; crown: 0 flat, 1 stepped, 2 antenna
+  const pts = [[x, y], [x, y - h]];
+  const cw = w * 0.22;
+  if(crown === 1){
+    pts.push([x + cw, y - h], [x + cw, y - h - h * 0.04], [x + w - cw, y - h - h * 0.04],
+             [x + w - cw, y - h], [x + w, y - h]);
+  }else if(crown === 2){
+    pts.push([x + w / 2 - 1.3, y - h], [x + w / 2 - 1.3, y - h - h * 0.10],
+             [x + w / 2 + 1.3, y - h - h * 0.10], [x + w / 2 + 1.3, y - h], [x + w, y - h]);
+  }else{
+    pts.push([x + w, y - h]);
+  }
+  pts.push([x + w, y]);
+  return pts;
+}
+function gableHousePts(x, y, w, h, kind){
+  // x = left edge, y = base, h = wall height (gable on top)
+  const pts = [[x, y], [x, y - h]];
+  const gw = Math.min(w * 0.5, h * 0.34);
+  if(kind === "step"){
+    pts.push([x, y - h - gw * 0.35], [x + w * 0.16, y - h - gw * 0.35]);
+    pts.push([x + w * 0.16, y - h - gw * 0.75], [x + w * 0.34, y - h - gw * 0.75]);
+    pts.push([x + w * 0.34, y - h - gw * 1.1], [x + w * 0.66, y - h - gw * 1.1]);
+    pts.push([x + w * 0.66, y - h - gw * 0.75], [x + w * 0.84, y - h - gw * 0.75]);
+    pts.push([x + w * 0.84, y - h - gw * 0.35], [x + w, y - h - gw * 0.35]);
+  }else if(kind === "bell"){
+    pts.push([x + w * 0.10, y - h - gw * 0.30], [x + w * 0.16, y - h - gw * 1.05],
+             [x + w / 2, y - h - gw * 1.45], [x + w * 0.84, y - h - gw * 1.05],
+             [x + w * 0.90, y - h - gw * 0.30]);
+  }else if(kind === "spout"){
+    pts.push([x, y - h - gw * 0.55], [x + w / 2, y - h - gw * 1.5],
+             [x + w, y - h - gw * 0.55]);
+  }else if(kind === "neck"){
+    pts.push([x + w * 0.12, y - h - gw * 0.3], [x + w * 0.12, y - h - gw * 1.15],
+             [x + w / 2, y - h - gw * 1.42], [x + w * 0.88, y - h - gw * 1.15],
+             [x + w * 0.88, y - h - gw * 0.3]);
+  }else{
+    pts.push([x + w / 2, y - h - gw * 1.25]);
+  }
+  pts.push([x + w, y - h]);
+  pts.push([x + w, y]);
+  return pts;
+}
+
+// bridge deck over the Amsterdam canal: humped silhouette from xs..xe
+function bridgePts(xs, xe, y){
+  return [
+    [xs, y], [xs, y - 9], [xs + (xe - xs) * 0.12, y - 11],
+    [xs + (xe - xs) * 0.30, y - 20], [xs + (xe - xs) * 0.50, y - 23],
+    [xs + (xe - xs) * 0.70, y - 20], [xs + (xe - xs) * 0.88, y - 11],
+    [xe, y - 9], [xe, y]
+  ];
+}
+
+/* ================================================================ geometry
+   buildGeo() is the only place cities differ. It returns three lists of
+   {key, path} in painting order: far (skyline/ridge, 40-55% faded toward the
+   sky), mid (garden + landmark), near (darkest foreground). Every path is an
+   explicit point array above; nothing is noise-driven.                          */
+function buildGeo(ix){
+  const A = ART[ix];
+  const far = [], mid = [], near = [];
+
+  const F0 = pts => far.push({ key: "far0", path: pathOf(pts) });
+  const F1 = pts => far.push({ key: "far1", path: pathOf(pts) });
+  const FM0 = list => far.push({ key: "far0", path: pathMulti(list) });
+  const FM1 = list => far.push({ key: "far1", path: pathMulti(list) });
+  const M0 = pts => mid.push({ key: "mid0", path: pathOf(pts) });
+  const M1 = pts => mid.push({ key: "mid1", path: pathOf(pts) });
+  const MM1 = list => mid.push({ key: "mid1", path: pathMulti(list) });
+  const M2 = pts => mid.push({ key: "mid2", path: pathOf(pts) });
+  const MW = pts => mid.push({ key: "water0", path: pathOf(pts) });
+  const MA = list => mid.push({ key: "accent", path: pathMulti(list) });
+  const N0 = pts => near.push({ key: "near0", path: pathOf(pts) });
+  const N1 = pts => near.push({ key: "near1", path: pathOf(pts) });
+  const NM1 = list => near.push({ key: "near1", path: pathMulti(list) });
+  const NA = list => near.push({ key: "accent", path: pathMulti(list) });
+
+  const pagoX = 0.385 * DW, pagoY = shoreYAt(0.385);
+  const pagoda = (x, sc) => M1(tr(PAGODA, x, shoreYAt(x / DW), sc));
+  const torii = (x, sc) => MM1(TORII.map(p => tr(p, x, shoreYAt(x / DW), sc)));
+
+  // near foreground: dark band, tufts, then the city's tree
+  const nearGround = () => {
+    N0(land(nx(NEAR_EDGE_N), U));
+    NM1(TUFTS.map(([f, h, lean]) => {
+      const x = f * DW, y = nearEdgeYAt(f) + 5;
+      return [[x - 5, y], [x + 2, y], [x - 4 + lean, y - h]];
+    }));
+  };
+  const bigConifer = (f, h, w) => N1(coniferPts(f * DW, 1010, h, w));
+  const bigMaple = (f, h) => NM1([
+    trunkPts(f * DW, 1005, 20, h * 0.42),
+    canopyPts(f * DW, 1005 - h * 0.55, h * 0.44, 1.0)
+  ]);
+  const bigPalm = (f, h, lean) => NM1(palmPts(f * DW, 1010, h, lean));
+
+  switch(A.id){
+    case "garden": {
+      F0(land(nx([
+        [0, 600], [0.06, 548], [0.13, 512], [0.20, 536], [0.27, 498], [0.34, 524],
+        [0.41, 502], [0.48, 534], [0.55, 512], [0.62, 540], [0.69, 508], [0.76, 534],
+        [0.83, 514], [0.90, 542], [0.96, 566], [1, 600]
+      ]), 640));
+      const trees = [0.03, 0.09, 0.16, 0.23, 0.30, 0.37, 0.44, 0.51, 0.58, 0.65, 0.72, 0.79, 0.86, 0.93, 0.99];
+      FM1(trees.map((f, i) => coniferPts(f * DW, 604, 34 + (i % 3) * 11, 26 + (i % 2) * 8)));
+
+      nearGround();
+      bigConifer(0.055, 320, 150);
+      bigConifer(0.145, 240, 116);
+      bigConifer(0.855, 330, 158);
+      bigConifer(0.935, 235, 112);
+      break;
+    }
+
+    case "vancouver": {
+      // outer coastal range: most faded; inner ridge: a step darker
+      F0(land(nx([
+        [0, 600], [0.02, 530], [0.05, 470], [0.08, 430], [0.11, 455], [0.14, 400],
+        [0.17, 360], [0.20, 320], [0.23, 340], [0.26, 300], [0.29, 330], [0.32, 395],
+        [0.35, 430], [0.38, 410], [0.41, 450], [0.44, 480], [0.47, 455], [0.50, 420],
+        [0.53, 380], [0.56, 350], [0.59, 330], [0.62, 355], [0.65, 390], [0.68, 430],
+        [0.71, 405], [0.74, 445], [0.78, 480], [0.81, 460], [0.85, 500], [0.89, 530],
+        [0.93, 515], [0.96, 560], [1, 600]
+      ]), 640));
+      F1(land(nx([
+        [0, 600], [0.03, 560], [0.06, 520], [0.09, 495], [0.12, 510], [0.15, 470],
+        [0.18, 455], [0.21, 480], [0.24, 450], [0.27, 470], [0.30, 500], [0.33, 520],
+        [0.36, 505], [0.39, 530], [0.42, 545], [0.45, 520], [0.48, 495], [0.51, 470],
+        [0.54, 490], [0.57, 520], [0.60, 540], [0.63, 520], [0.66, 545], [0.69, 520],
+        [0.72, 495], [0.75, 520], [0.78, 540], [0.81, 560], [0.85, 545], [0.89, 570],
+        [0.93, 555], [0.96, 580], [1, 600]
+      ]), 640));
+      const treeline = [0.02, 0.06, 0.10, 0.15, 0.19, 0.24, 0.30, 0.35, 0.40, 0.46, 0.52,
+                        0.58, 0.64, 0.70, 0.76, 0.82, 0.88, 0.94, 0.985];
+      FM1(treeline.map((f, i) => coniferPts(f * DW, 604, 42 + (i % 4) * 9, 30 + (i % 3) * 6)));
+
+      nearGround();
+      bigConifer(0.050, 336, 158);
+      bigConifer(0.150, 246, 118);
+      bigConifer(0.862, 344, 164);
+      bigConifer(0.940, 240, 114);
+      break;
+    }
+
+    case "toronto": {
+      const blocks = [
+        [0.000, 0.052, 544], [0.052, 0.044, 516], [0.096, 0.050, 536], [0.146, 0.042, 500],
+        [0.188, 0.048, 522], [0.236, 0.040, 512], [0.276, 0.050, 486], [0.326, 0.044, 528],
+        [0.370, 0.048, 506], [0.418, 0.042, 494], [0.460, 0.050, 522], [0.510, 0.044, 510],
+        [0.554, 0.048, 492], [0.602, 0.042, 530], [0.644, 0.048, 502], [0.692, 0.040, 520],
+        [0.732, 0.046, 512], [0.778, 0.044, 496], [0.822, 0.050, 528], [0.872, 0.042, 510],
+        [0.914, 0.048, 500], [0.962, 0.038, 520]
+      ];
+      FM0(blocks.map(([x, w, top]) => towerPts(x * DW, 600, w * DW, 600 - top, 0)));
+      // Rogers Centre is a rounded dome on the lake shore
+      F1(nx([
+        [0.700, 600], [0.702, 586], [0.710, 568], [0.724, 548], [0.744, 530],
+        [0.768, 520], [0.792, 530], [0.812, 548], [0.826, 568], [0.834, 586],
+        [0.836, 600]
+      ]));
+      FM1([
+        towerPts(0.248 * DW, 600, 0.040 * DW, 96, 2),
+        towerPts(0.470 * DW, 600, 0.038 * DW, 74, 1),
+        towerPts(0.585 * DW, 600, 0.034 * DW, 88, 0)
+      ]);
+
+      nearGround();
+      bigMaple(0.075, 340);
+      bigMaple(0.930, 300);
+      break;
+    }
+
+    case "hawaii": {
+      F0(land(nx([
+        [0, 600], [0.04, 586], [0.08, 574], [0.12, 582], [0.16, 570], [0.20, 584], [0.24, 600]
+      ]), 640));
+      // Diamond Head: steep left flank, long right slope, notched flat crater rim
+      F1(land(nx([
+        [0, 600], [0.012, 560], [0.026, 506], [0.045, 456], [0.062, 420], [0.08, 396],
+        [0.10, 382], [0.13, 388], [0.16, 378], [0.19, 386], [0.22, 376], [0.25, 390],
+        [0.268, 410], [0.285, 384], [0.31, 376], [0.34, 370], [0.37, 374], [0.40, 366],
+        [0.43, 372], [0.46, 364], [0.48, 368], [0.50, 384], [0.518, 404], [0.535, 370],
+        [0.565, 366], [0.59, 360], [0.615, 364], [0.64, 356], [0.665, 362], [0.69, 376],
+        [0.72, 396], [0.75, 424], [0.78, 456], [0.82, 494], [0.86, 532], [0.90, 566],
+        [0.94, 586], [1, 600]
+      ]), 640));
+
+      nearGround();
+      bigPalm(0.045, 372, 1);
+      bigPalm(0.955, 356, -1);
+      break;
+    }
+
+    case "hongkong": {
+      const back = [
+        [0.000, 0.050, 522], [0.050, 0.040, 496], [0.098, 0.050, 536], [0.156, 0.045, 506],
+        [0.218, 0.050, 520], [0.276, 0.040, 542], [0.334, 0.050, 500], [0.392, 0.045, 530],
+        [0.454, 0.050, 514], [0.512, 0.040, 542], [0.570, 0.050, 506], [0.630, 0.045, 526],
+        [0.690, 0.050, 514], [0.750, 0.040, 536], [0.808, 0.050, 504], [0.866, 0.045, 526],
+        [0.924, 0.050, 514], [0.980, 0.020, 530]
+      ];
+      FM0(back.map(([x, w, top]) => towerPts(x * DW, 600, w * DW, 600 - top, 0)));
+      const front = [
+        [0.004, 0.030, 430, 1], [0.034, 0.026, 472, 0], [0.060, 0.034, 398, 1],
+        [0.094, 0.024, 492, 2], [0.118, 0.030, 368, 1], [0.148, 0.026, 438, 0],
+        [0.174, 0.032, 410, 1], [0.206, 0.028, 462, 2], [0.234, 0.030, 382, 1],
+        [0.264, 0.026, 445, 0], [0.290, 0.034, 402, 1], [0.324, 0.028, 478, 2],
+        [0.352, 0.030, 418, 1], [0.382, 0.026, 392, 0], [0.408, 0.032, 452, 1],
+        [0.440, 0.028, 406, 2], [0.468, 0.030, 430, 1], [0.498, 0.026, 470, 0],
+        [0.524, 0.034, 398, 1], [0.558, 0.028, 455, 2], [0.586, 0.030, 415, 1],
+        [0.616, 0.026, 440, 0], [0.642, 0.032, 405, 1], [0.674, 0.028, 468, 2],
+        [0.702, 0.030, 425, 1], [0.732, 0.026, 398, 0], [0.758, 0.034, 460, 1],
+        [0.792, 0.028, 420, 2], [0.820, 0.030, 435, 1], [0.850, 0.026, 405, 0],
+        [0.876, 0.032, 448, 1], [0.908, 0.028, 415, 2], [0.936, 0.030, 432, 1],
+        [0.966, 0.026, 400, 0], [0.992, 0.008, 440, 1]
+      ];
+      FM1(front.map(([x, w, top, c]) => towerPts(x * DW, 600, w * DW, 600 - top, c)));
+
+      nearGround();
+      bigMaple(0.060, 300);
+      bigMaple(0.945, 322);
+      break;
+    }
+
+    case "amsterdam": {
+      FM0([
+        towerPts(0.020 * DW, 600, 0.070 * DW, 92, 0),
+        towerPts(0.130 * DW, 600, 0.060 * DW, 120, 0),
+        towerPts(0.260 * DW, 600, 0.080 * DW, 104, 0),
+        towerPts(0.430 * DW, 600, 0.070 * DW, 82, 0),
+        towerPts(0.560 * DW, 600, 0.090 * DW, 110, 0),
+        towerPts(0.720 * DW, 600, 0.070 * DW, 96, 0),
+        towerPts(0.860 * DW, 600, 0.090 * DW, 118, 0)
+      ]);
+      const houses = [
+        [0.000, 0.043, 438, "step"], [0.046, 0.038, 404, "bell"], [0.087, 0.045, 455, "spout"],
+        [0.135, 0.040, 420, "neck"],
+        [0.205, 0.042, 448, "step"], [0.250, 0.037, 412, "bell"], [0.290, 0.044, 460, "neck"],
+        [0.337, 0.039, 428, "spout"],
+        [0.402, 0.041, 450, "step"], [0.446, 0.038, 418, "bell"], [0.487, 0.043, 442, "neck"],
+        [0.533, 0.040, 410, "spout"],
+        [0.600, 0.046, 430, "step"], [0.649, 0.038, 412, "bell"], [0.690, 0.042, 448, "neck"],
+        [0.735, 0.039, 420, "spout"], [0.777, 0.041, 436, "step"],
+        [0.845, 0.043, 414, "bell"], [0.891, 0.038, 446, "neck"], [0.932, 0.044, 422, "spout"],
+        [0.979, 0.021, 438, "step"]
+      ];
+      FM1(houses.map(([x, w, top, kind]) =>
+        gableHousePts(x * DW, 600, w * DW, 600 - top, kind)));
+      // a thin church tower and spire in one of the gaps
+      F1(nx([
+        [0.566, 600], [0.566, 362], [0.572, 362], [0.572, 330], [0.586, 266],
+        [0.600, 330], [0.600, 362], [0.606, 362], [0.606, 600]
+      ]));
+
+      // left bank fills the foreground; the canal stays open on the right
+      const topL = nx([[0, 912], [0.060, 890], [0.120, 898], [0.180, 886], [0.240, 898],
+                       [0.300, 888], [0.360, 899], [0.420, 889], [0.480, 898], [0.540, 886],
+                       [0.600, 900], [0.660, 888], [0.720, 899], [0.780, 886], [0.820, 896],
+                       [0.855, 932]]);
+      N0(topL.concat([[0.742 * DW, U], [0, U]]));
+      NM1(TUFTS.filter((t, i) => i % 3 !== 1).map(([f, h, lean]) => {
+        const x = f * DW, y = nearEdgeYAt(f) + 5;
+        return [[x - 5, y], [x + 2, y], [x - 4 + lean, y - h]];
+      }));
+      // tulips: the one bright note in the foreground
+      const tul = [];
+      for(let row = 0; row < 3; row++){
+        for(let i = 0; i < 8; i++){
+          tul.push(circlePts((0.060 + i * 0.030 + row * 0.007) * DW,
+                             (0.912 + row * 0.018) * U, 4.5, 7));
+        }
+      }
+      NA(tul);
+      NM1([
+        canopyPts(0.105 * DW, 900, 96, 1.0),
+        trunkPts(0.105 * DW, 935, 16, 60),
+        canopyPts(0.245 * DW, 905, 82, 1.0),
+        trunkPts(0.245 * DW, 938, 15, 58)
+      ]);
+      break;
+    }
+  }
+
+  /* ---- the garden itself: identical in every city. This is the constant
+     that makes the five scenes read as one place: same pagoda in the same
+     screen position, same torii, path, pond, flanking trees and rocks. ---- */
+  M0(land(nx(SHORE_N), U));
+  M2(bandAlongShore(18));
+  M2(pathPts());
+  MW(pondPts());
+  pagoda(pagoX, 1.50);
+  torii(0.80 * DW, 1.35);
+  M1(coniferPts(0.135 * DW, shoreYAt(0.135) + 4, 178, 96));
+  M1(coniferPts(0.630 * DW, shoreYAt(0.630) + 4, 158, 86));
+  M1(rockPts(0.460 * DW, shoreYAt(0.460) + 8, 78, 22));
+  M1(rockPts(0.560 * DW, shoreYAt(0.560) + 8, 58, 16));
+  M1(canopyPts(0.505 * DW, shoreYAt(0.505) + 36, 30, 0.55));
+  M1(canopyPts(0.668 * DW, shoreYAt(0.668) + 44, 25, 0.55));
+  // a stone lantern (toro) beside the path
+  MM1((() => {
+    const x = 0.578 * DW, y = shoreYAt(0.578) + 26;
+    return [
+      [[x - 3, y], [x + 3, y], [x + 3, y - 18], [x - 3, y - 18]],
+      [[x - 9, y - 18], [x + 9, y - 18], [x + 6, y - 26], [x - 6, y - 26]],
+      [[x - 12, y - 26], [x + 12, y - 26], [x, y - 38]]
+    ];
+  })());
+
+  /* ---- the city's landmark/signature, in front of the same garden ---- */
+  if(A.id === "toronto"){
+    M1(tr(CN, 0.715 * DW, shoreYAt(0.715) + 2, 1.15));
+  }else if(A.id === "hawaii"){
+    // hibiscus in the garden
+    MA([
+      circlePts(0.300 * DW, shoreYAt(0.300) + 6, 8),
+      circlePts(0.316 * DW, shoreYAt(0.316) - 2, 6),
+      circlePts(0.472 * DW, shoreYAt(0.472) + 8, 7),
+      circlePts(0.264 * DW, shoreYAt(0.264) + 10, 5)
+    ]);
+  }else if(A.id === "hongkong"){
+    // lantern posts along the shore, red at night once drawMidActors glow lands
+    const lant = [];
+    for(const f of [0.455, 0.525]){
+      lant.push([[f * DW - 3, shoreYAt(f) + 2], [f * DW + 3, shoreYAt(f) + 2],
+                 [f * DW + 3, shoreYAt(f) - 44], [f * DW - 3, shoreYAt(f) - 44]]);
+      lant.push(circlePts(f * DW, shoreYAt(f) - 52, 8, 8));
+    }
+    MM1(lant);
+  }else if(A.id === "amsterdam"){
+    // a canal coming toward the viewer on the right, crossed by a humped bridge
+    const canalL = [[0.845 * DW, 700], [0.822 * DW, 762], [0.792 * DW, 836],
+                    [0.766 * DW, 912], [0.742 * DW, U]];
+    const canalR = [[0.925 * DW, 700], [0.948 * DW, 762], [0.976 * DW, 836],
+                    [1.0 * DW, 912], [1.0 * DW, U]];
+    MW(canalL.concat(canalR.slice().reverse()));
+    MM1([
+      [[0.805 * DW, 795], [0.972 * DW, 795], [0.972 * DW, 806], [0.805 * DW, 806]],
+      [[0.812 * DW, 795], [0.822 * DW, 795], [0.822 * DW, 824], [0.812 * DW, 824]],
+      [[0.952 * DW, 795], [0.962 * DW, 795], [0.962 * DW, 824], [0.952 * DW, 824]]
+    ]);
+    M1(bridgePts(0.790 * DW, 0.986 * DW, 792));
+    M1(tr(BOAT[0], 0.880 * DW, 874, 1.05));
+    M1(tr(BOAT[1], 0.880 * DW, 874, 1.05));
+    M1(tr(BOAT[2], 0.880 * DW, 874, 1.05));
+  }
+
+  return { far, mid, near };
+}
+
+function bandAlongShore(thick){
+  const top = nx(SHORE_N);
+  const bot = top.slice().reverse().map(p => [p[0], p[1] + thick]);
+  return top.concat(bot);
+}
+function nearEdgeYAt(f){
+  for(let i = 1; i < NEAR_EDGE_N.length; i++){
+    if(f <= NEAR_EDGE_N[i][0]){
+      const a = NEAR_EDGE_N[i - 1], b = NEAR_EDGE_N[i];
+      const t = (f - a[0]) / Math.max(1e-6, b[0] - a[0]);
+      return lerp(a[1], b[1], t);
+    }
+  }
+  return NEAR_EDGE_N[NEAR_EDGE_N.length - 1][1];
+}
+
+// leaf / small circle helpers used after buildGeo is defined
+const LEAF = [
+  [0, -10], [-3.2, -4.2], [-9.4, -4.6], [-5.4, 0.6], [-7.4, 6.6], [-1.6, 3.6],
+  [0, 9.2], [1.6, 3.6], [7.4, 6.6], [5.4, 0.6], [9.4, -4.6], [3.2, -4.2]
+];
+function circlePts(x, y, r, n){
+  const pts = [], N = n || 10;
+  for(let i = 0; i < N; i++){
+    const a = (i / N) * Math.PI * 2;
+    pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r]);
+  }
+  return pts;
+}
+
+/* ================================================================== palette */
+// One ink colour per city is mixed toward the sky at a different strength for
+// each depth band: far is ~45-55% faded, mid ~17-31%, near 0-9%. Weather then
+// grades the whole palette, mirroring relax.html's multiply/lighter passes.
+function grade(c){
+  let r = c[0], g = c[1], b = c[2];
+  if(rainAmt > 0.001){
+    const a = 0.22 * rainAmt;
+    r *= 1 - a * (1 - 96 / 255);
+    g *= 1 - a * (1 - 116 / 255);
+    b *= 1 - a * (1 - 138 / 255);
+  }
+  if(snowAmt > 0.001){
+    const a = 0.045 * snowAmt;
+    r += 196 * a; g += 214 * a; b += 230 * a;
+  }
+  return [r, g, b];
+}
+function gradeSky(c){
+  let r = c[0], g = c[1], b = c[2];
+  if(cloudAmt > 0.01){
+    const a = 0.20 * cloudAmt;
+    r *= 1 - a * (1 - 150 / 255);
+    g *= 1 - a * (1 - 159 / 255);
+    b *= 1 - a * (1 - 172 / 255);
+  }
+  return grade([r, g, b]);
+}
+function paletteFor(m, A){
+  const sky = m.bot;
+  const ink = hex(A.ink), waterInk = hex(A.waterInk), sand = hex(A.sand), accent = hex(A.accent);
+  // at night the air is clearer, so the atmospheric fade-into-sky weakens a bit
+  const nf = 1 - 0.30 * m.night;
+  return {
+    far0: grade(mix(ink, sky, 0.55 * nf)),
+    far1: grade(mix(ink, sky, 0.42 * nf)),
+    mid0: grade(mix(ink, sky, 0.26 * nf)),
+    mid1: grade(mix(ink, sky, 0.12 * nf)),
+    // sand is a bright surface: at night it must sink toward the sky, not glow
+    mid2: grade(mix(sand, sky, 0.30 + 0.45 * m.night)),
+    near0: grade(mix(ink, sky, 0.055 * nf)),
+    near1: grade(mix(ink, sky, 0.00)),
+    water0: grade(mix(waterInk, sky, 0.52)),
+    water1: grade(mix(waterInk, sky, 0.30)),
+    accent: grade(mix(accent, sky, 0.10))
+  };
+}
+function palHash(pal){
+  let h = 0;
+  for(const k in pal){
+    const c = pal[k];
+    h = (h * 33 + ((c[0] / 6) | 0) * 7 + ((c[1] / 6) | 0) * 11 + ((c[2] / 6) | 0)) | 0;
+  }
+  return h;
+}
+
+/* ============================================================ layer caching */
+// Static art is baked per layer into an offscreen canvas. It is only repainted
+// when the palette bucket, the city or the size changes; frames between those
+// events are pure blits at a per-layer drift offset.
+const BANDS = { far: [150, 640], mid: [240, U], near: [610, U] };
+const SPEED = { far: 0.12, mid: 0.30, near: 0.55, water: 0.35 };
+const layerCv = {}, layerCtx = {};
+const layerDirty = { far: true, mid: true, near: true };
+let cityIx = 1;
+let lastPalHash = 0, lastCityIx = -1, pendingSync = true;
+let geoCache = new Map();
+let lastOff = { far: 0, mid: 0, near: 0 };
+
+function getGeo(ix){
+  let g = geoCache.get(ix);
+  if(!g){ g = buildGeo(ix); geoCache.set(ix, g); }
+  return g;
+}
+function layerHeight(name){
+  const b = BANDS[name];
+  const y = Math.round(b[0] * S);
+  return b[1] === U ? Math.max(2, H - y) : Math.max(2, Math.round((b[1] - b[0]) * S));
+}
+function buildLayerNow(name, pal){
+  const g = getGeo(cityIx)[name];
+  const c = layerCv[name], g2 = layerCtx[name];
+  const y = Math.round(BANDS[name][0] * S);
+  g2.setTransform(1, 0, 0, 1, 0, 0);
+  g2.clearRect(0, 0, c.width, c.height);
+  g2.setTransform(S, 0, 0, S, 0, -y);
+  for(let i = 0; i < g.length; i++){
+    g2.fillStyle = css(pal[g[i].key]);
+    g2.fill(g[i].path);
+  }
+  layerDirty[name] = false;
+}
+function pumpLayers(pal){
+  if(pendingSync){
+    pendingSync = false;
+    buildLayerNow("far", pal);
+    buildLayerNow("mid", pal);
+    buildLayerNow("near", pal);
+    return;
+  }
+  // palette-only changes: repaint at most one layer per frame, so a mood or
+  // weather cross-fade never costs more than a few milliseconds
+  for(const n in BANDS){
+    if(layerDirty[n]){ buildLayerNow(n, pal); break; }
+  }
+}
+function markAllDirty(){ for(const n in BANDS) layerDirty[n] = true; }
+
+function resize(){
+  // Firefox's 2-D fills are slower; cap its DPR the same way relax.html does.
+  DPR = Math.min(window.devicePixelRatio || 1, isFirefox ? 1.25 : 1.5);
+  W = cv.width = Math.max(1, Math.floor(innerWidth * DPR));
+  H = cv.height = Math.max(1, Math.floor(innerHeight * DPR));
+  cv.style.width = innerWidth + "px";
+  cv.style.height = innerHeight + "px";
+  S = H / U;
+  DW = W / S;
+  for(const name in BANDS){
+    let c = layerCv[name];
+    if(!c){ c = layerCv[name] = document.createElement("canvas"); layerCtx[name] = c.getContext("2d"); }
+    c.width = W;
+    c.height = layerHeight(name);
+    layerDirty[name] = true;
+  }
+  buildVignette();
+  seedParticles();
+  seedClouds();
+  geoCache.clear();
+  lastPalHash = 0;
+  lastCityIx = -1;
+  pendingSync = true;
+}
+addEventListener("resize", resize);
+
+function buildVignette(){
+  vignetteCv = document.createElement("canvas");
+  vignetteCv.width = W; vignetteCv.height = H;
+  const vg = vignetteCv.getContext("2d");
+  const vgrad = vg.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.22,
+                                        W / 2, H / 2, Math.max(W, H) * 0.75);
+  vgrad.addColorStop(0, "rgba(0,0,0,0)");
+  vgrad.addColorStop(1, "rgba(5,9,13,0.45)");
+  vg.fillStyle = vgrad;
+  vg.fillRect(0, 0, W, H);
+}
+
+/* ------------------------------------------------------------ glow sprites */
+// radial-gradient sprites are pre-rendered once per colour and blitted: far
+// cheaper than building a gradient every frame (the Firefox case relax had).
+const glowSprites = new Map();
+const softSprites = new Map();
+function glowSprite(col){
+  const key = col.join(",");
+  let c = glowSprites.get(key);
+  if(c) return c;
+  const SIZE = 96;
+  c = document.createElement("canvas");
+  c.width = c.height = SIZE;
+  const g = c.getContext("2d");
+  const rg = g.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
+  rg.addColorStop(0, "rgba(" + key + ",1)");
+  rg.addColorStop(0.40, "rgba(" + key + ",0.32)");
+  rg.addColorStop(1, "rgba(" + key + ",0)");
+  g.fillStyle = rg;
+  g.fillRect(0, 0, SIZE, SIZE);
+  glowSprites.set(key, c);
+  return c;
+}
+function glow(g, x, y, r, col, a){
+  if(a <= 0.004 || r <= 0.5) return;
+  g.globalAlpha = Math.min(1, a);
+  g.drawImage(glowSprite(col), x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = 1;
+}
+function softSprite(col){
+  const key = col.join(",");
+  let c = softSprites.get(key);
+  if(c) return c;
+  const SIZE = 128;
+  c = document.createElement("canvas");
+  c.width = c.height = SIZE;
+  const g = c.getContext("2d");
+  const rg = g.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
+  rg.addColorStop(0, "rgba(" + key + ",1)");
+  rg.addColorStop(0.45, "rgba(" + key + ",0.55)");
+  rg.addColorStop(1, "rgba(" + key + ",0)");
+  g.fillStyle = rg;
+  g.fillRect(0, 0, SIZE, SIZE);
+  softSprites.set(key, c);
+  if(softSprites.size > 40) softSprites.clear();
+  return c;
+}
+
+/* =================================================================== sky */
+let skyStrip = null;
+let cloudBands = [];
+
+function seedClouds(){
+  cloudBands = [];
+  const defs = [
+    { n: 8, y0: 0.10, y1: 0.20, sp: 0.10, a: 0.085, size: 1.5 },
+    { n: 7, y0: 0.19, y1: 0.29, sp: 0.13, a: 0.070, size: 1.1 },
+    { n: 6, y0: 0.28, y1: 0.38, sp: 0.16, a: 0.055, size: 0.8 }
+  ];
+  for(const d of defs){
+    const blobs = [];
+    for(let i = 0; i < d.n; i++){
+      const cx = Math.random(), cy = d.y0 + Math.random() * (d.y1 - d.y0);
+      const k = 2 + ((Math.random() * 3) | 0);
+      for(let j = 0; j < k; j++){
+        blobs.push({
+          x: cx + (Math.random() - 0.5) * 0.10,
+          y: cy + (Math.random() - 0.5) * 0.020,
+          rx: (0.030 + Math.random() * 0.055) * d.size,
+          ry: (0.010 + Math.random() * 0.013) * d.size,
+          a: d.a * (0.5 + Math.random() * 0.7)
+        });
+      }
+    }
+    cloudBands.push({ blobs, sp: d.sp });
+  }
+}
+
+// The gradient is painted into a 2px-wide strip and stretched. That keeps the
+// per-frame cost of the sky to one tiny fill plus a full-screen blit.
+function drawSky(m){
+  if(!skyStrip || skyStrip.height !== H){
+    skyStrip = document.createElement("canvas");
+    skyStrip.width = 2;
+    skyStrip.height = H;
+  }
+  const g = skyStrip.getContext("2d");
+  const top = gradeSky(m.top), bot = gradeSky(m.bot), midc = gradeSky(mix(m.top, m.bot, 0.55));
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, css(top));
+  grad.addColorStop(0.42, css(midc));
+  grad.addColorStop(0.60, css(bot));
+  grad.addColorStop(1, css(bot));
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 2, H);
+  ctx.drawImage(skyStrip, 0, 0, 2, H, 0, 0, W, H);
+}
+
+// sun/moon position on the same arc relax.html uses, expressed in design units
+function celestial(){
+  const elev = Math.sin(((hour - 6) / 24) * Math.PI * 2);
+  if(elev > 0.015){
+    const k = clamp((hour - 6) / 12, 0, 1);
+    return { x: (0.08 + k * 0.84) * W, y: H * (0.60 - elev * 0.42), kind: "sun", amt: elev };
+  }
+  const nightFrac = ((hour - 18 + 24) % 24) / 12;
+  const me = Math.sin(clamp(nightFrac, 0, 1) * Math.PI);
+  if(me <= 0.02) return null;
+  return { x: (0.08 + clamp(nightFrac, 0, 1) * 0.84) * W, y: H * (0.60 - me * 0.42), kind: "moon", amt: me };
+}
+
+function drawCelestial(m){
+  const R = Math.min(W, H);
+  const starA = m.night * (1 - rainAmt * 0.85) * (1 - snowAmt * 0.55);
+  if(starA > 0.02){
+    const tw = reduceMotion ? 1 : 0.72 + 0.28 * Math.sin(performance.now() * 0.0007);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "#e8f0ff";
+    ctx.globalAlpha = Math.min(1, starA * tw * 0.85);
+    ctx.beginPath();
+    for(let i = 0; i < stars.length; i++){
+      const st = stars[i];
+      ctx.rect(st.x * W, st.y * H, st.r * DPR, st.r * DPR);
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  const c = celestial();
+  if(!c) return;
+  const warm = c.kind === "sun" ? clamp(1 - Math.abs(hour - 12) / 7, 0, 1) : 0;
+  ctx.globalCompositeOperation = "lighter";
+  if(c.kind === "sun"){
+    glow(ctx, c.x, c.y, R * 0.52, [255, 224, 166], 0.06 + 0.16 * warm);
+    glow(ctx, c.x, c.y, R * 0.075, [255, 246, 214], 0.30 + 0.14 * warm);
+  }else{
+    glow(ctx, c.x, c.y, R * 0.40, [178, 198, 232], 0.05 + 0.10 * c.amt);
+    glow(ctx, c.x, c.y, R * 0.060, [232, 240, 255], 0.20 + 0.16 * c.amt);
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  const rr = R * (c.kind === "sun" ? 0.030 : 0.024);
+  ctx.fillStyle = c.kind === "sun"
+    ? css(mix([255, 252, 236], [255, 216, 150], 1 - warm))
+    : "#e8eefc";
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, rr, 0, 6.2832);
+  ctx.fill();
+}
+
+function drawClouds(m, t){
+  const col = mix([236, 241, 247], [92, 102, 118], rainAmt * 0.85);
+  const dim = 0.35 + 0.65 * (1 - m.night);
+  const sprite = softSprite([
+    Math.round(col[0] * dim), Math.round(col[1] * dim), Math.round(col[2] * dim)
+  ]);
+  const aScale = 0.85 + 0.55 * rainAmt + 0.30 * snowAmt + 0.45 * cloudAmt;
+  const nScale = 0.45 + 0.55 * (1 - m.night);
+  for(const band of cloudBands){
+    const off = reduceMotion ? 0 : (t * BASE * band.sp * S) % W;
+    for(const b of band.blobs){
+      let x = b.x * W - off;
+      x = ((x % W) + W) % W;
+      const rx = b.rx * W, ry = b.ry * H;
+      ctx.globalAlpha = Math.min(0.55, b.a * aScale * nScale);
+      ctx.drawImage(sprite, x - rx, b.y * H - ry, rx * 2, ry * 2);
+      if(x - rx < 0) ctx.drawImage(sprite, x + W - rx, b.y * H - ry, rx * 2, ry * 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ================================================================= water */
+function drawHaze(m, pal){
+  const y0 = 0.40 * H, y1 = 640 * S;
+  const c = mix(gradeSky(m.bot), pal.far1, 0.5);
+  const a = (0.14 + 0.20 * (1 - m.night)) * (1 - 0.40 * rainAmt);
+  const col = "rgba(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + ",";
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, col + "0)");
+  g.addColorStop(0.78, col + (a * 0.85).toFixed(3) + ")");
+  g.addColorStop(1, col + (a * 0.30).toFixed(3) + ")");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, y0, W, y1 - y0);
+}
+
+function drawWater(m, pal, t){
+  const y0 = WL * S, y1 = 748 * S;
+  ctx.fillStyle = css(pal.water0);
+  ctx.fillRect(0, y0, W, y1 - y0);
+  ctx.fillStyle = css(pal.water1);
+  ctx.fillRect(0, (WL + 68) * S, W, y1 - (WL + 68) * S);
+
+  // horizontal shimmer lines, scrolling at 0.35x (the water reads as the
+  // second-slowest thing in the stack)
+  const lineCol = mix(m.bot, [255, 255, 255], 0.58);
+  const a = 0.09 + 0.17 * (1 - m.night);
+  ctx.strokeStyle = "rgba(" + (lineCol[0] | 0) + "," + (lineCol[1] | 0) + "," + (lineCol[2] | 0) + "," + a.toFixed(3) + ")";
+  ctx.lineWidth = Math.max(1, 1.1 * DPR);
+  const scroll = reduceMotion ? 0 : t * BASE * SPEED.water * S;
+  ctx.beginPath();
+  for(let i = 0; i < 26; i++){
+    const yy = (WL + 6 + i * 3.6) * S;
+    const len = (0.035 + 0.10 * (0.5 + 0.5 * Math.sin(i * 1.7))) * W;
+    let x = (i * 0.41 * W + scroll) % (W + len) - len;
+    ctx.moveTo(x, yy);
+    ctx.lineTo(x + len, yy);
+  }
+  ctx.stroke();
+
+  // soft reflection column under the sun / moon
+  const c = celestial();
+  if(c && c.y < (WL + 10) * S){
+    const warm = c.kind === "sun" ? [255, 234, 184] : [206, 220, 246];
+    const nightScale = c.kind === "sun"
+      ? 0.26 * clamp((hour - 6) / 12, 0, 1)
+      : 0.20 * c.amt;
+    ctx.strokeStyle = "rgba(" + warm[0] + "," + warm[1] + "," + warm[2] + "," + (0.10 + 0.22 * (1 - m.night)).toFixed(3) + ")";
+    ctx.beginPath();
+    for(let i = 0; i < 14; i++){
+      const yy = (WL + 4 + i * 5.2) * S;
+      const w = (0.010 + i * 0.004) * W * (0.6 + 0.4 * Math.sin(i * 1.9));
+      const xx = c.x + Math.sin(i * 2.3 + (reduceMotion ? 0 : t * 0.7)) * 7 * DPR;
+      ctx.moveTo(xx - w, yy);
+      ctx.lineTo(xx + w, yy);
+    }
+    ctx.stroke();
+  }
+}
+
+/* --------------------------------------------------- water signatures */
+const FLUKE_PATH = pathOf(FLUKE);
+const JUNK_PATH = pathMulti(JUNK);
+const CANOE_PATH = pathMulti(CANOE);
+const LEAF_PATH = pathOf(LEAF);
+
+function tileX(f, t, speed){
+  let x = f * W - t * BASE * speed * S;
+  return ((x % W) + W) % W;
+}
+function drawWrapped(x, fn){
+  fn(x);
+  if(x > W * 0.9) fn(x - W);
+  if(x < W * 0.1) fn(x + W);
+}
+
+function drawWaterActors(m, pal, t){
+  const A = ART[cityIx];
+  const bob = reduceMotion ? 0 : Math.sin(t * 0.55);
+  if(A.id === "vancouver"){
+    const x = tileX(0.615, t, 0.18), y = (WL + 17) * S + bob * 1.6 * S;
+    drawWrapped(x, xx => {
+      ctx.save();
+      ctx.translate(xx, y);
+      ctx.scale(S * 1.75, S * 1.75);
+      ctx.fillStyle = css(pal.near1);
+      ctx.fill(FLUKE_PATH);
+      ctx.restore();
+      ctx.strokeStyle = css(pal.water0);
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = Math.max(1, S * 1.2);
+      ctx.beginPath();
+      ctx.ellipse(xx, y, 14 * S, 2.4 * S, 0, 0, 6.2832);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }else if(A.id === "hongkong"){
+    const x = tileX(0.705, t, 0.30), y = (WL + 34) * S + bob * 1.2 * S;
+    drawWrapped(x, xx => {
+      ctx.save();
+      ctx.translate(xx, y);
+      ctx.scale(S * 0.62, S * 0.62);
+      ctx.fillStyle = css(pal.mid1);
+      ctx.fill(JUNK_PATH);
+      ctx.restore();
+    });
+  }else if(A.id === "hawaii"){
+    const x = tileX(0.225, t, 0.22), y = (WL + 9) * S + bob * 0.9 * S;
+    drawWrapped(x, xx => {
+      ctx.save();
+      ctx.translate(xx, y);
+      ctx.scale(S * 0.55, S * 0.55);
+      ctx.fillStyle = css(pal.mid1);
+      ctx.fill(CANOE_PATH);
+      ctx.restore();
+    });
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ------------------------------------------------- mid-layer night accents */
+function drawMidActors(m, pal, t){
+  const A = ART[cityIx];
+  const nightA = clamp((m.night - 0.12) / 0.88, 0, 1);
+  if(nightA <= 0.01) return;
+  const off = lastOff.mid;
+  const sx = d => {
+    let x = d * S - off;
+    return ((x % W) + W) % W;
+  };
+  ctx.globalCompositeOperation = "lighter";
+  const px = 0.385 * DW, py = shoreYAt(0.385);
+  for(const [dx, dy, r] of [[-14, -34, 21], [12, -76, 17], [0, -121, 14], [0, 3, 18]]){
+    glow(ctx, sx(px + dx), (py + dy) * S, r * S, [255, 196, 118], 0.30 * nightA);
+  }
+  glow(ctx, sx(0.80 * DW), (shoreYAt(0.80) - 58) * S, 18 * S, [255, 186, 120], 0.26 * nightA);
+  if(A.id === "hongkong"){
+    for(const f of [0.475, 0.545, 0.630]){
+      glow(ctx, sx(f * DW), (shoreYAt(f) - 52) * S, 27 * S, [255, 146, 92], 0.55 * nightA);
+    }
+  }
+  if(A.id === "amsterdam"){
+    glow(ctx, sx(0.700 * DW), 848 * S, 22 * S, [255, 208, 150], 0.30 * nightA);
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ------------------------------------------------------- falling leaves */
+function drawLeaves(pal){
+  if(ART[cityIx].id !== "toronto" || rainAmt > 0.6) return;
+  ctx.fillStyle = css(pal.accent);
+  for(let i = 0; i < leaves.length; i++){
+    const l = leaves[i];
+    const sc = S * 1.5 * l.sc;
+    ctx.save();
+    ctx.translate(l.x * W, l.y * H);
+    ctx.scale(sc, sc);
+    ctx.globalAlpha = 0.85;
+    ctx.fill(LEAF_PATH);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFireflies(m, t){
+  const nightA = m.night;
+  if(nightA <= 0.10) return;
+  ctx.globalCompositeOperation = "lighter";
+  for(let i = 0; i < flies.length; i++){
+    const f = flies[i];
+    const ph = f.ph + (reduceMotion ? 0 : t * 0.30 * f.sp);
+    const fx = (f.x + Math.sin(ph) * 0.035) * W;
+    const fy = (f.y + Math.cos(ph * 1.7) * 0.022) * H;
+    const a = nightA * (0.12 + 0.16 * Math.sin(ph * 2.1));
+    glow(ctx, fx, fy, S * 13, [255, 226, 150], a);
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+/* ============================================================== particles */
+function drawWeather(m){
+  if(rainAmt > 0.01){
+    const bright = (m.top[0] + m.top[1] + m.top[2]) / 3;
+    const col = bright > 140 ? "122,142,168" : "196,212,232";
+    ctx.strokeStyle = "rgba(" + col + "," + (0.40 * rainAmt).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1, DPR * 0.8);
+    ctx.beginPath();
+    for(let i = 0; i < rain.length; i++){
+      const r = rain[i];
+      const x = r.x * W, y = r.y * H, len = r.l * H, k = r.k * 0.1 * W;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - k, y + len);
+    }
+    ctx.stroke();
+  }
+  if(snowAmt > 0.01){
+    ctx.fillStyle = "rgba(255,255,255," + (0.72 * snowAmt).toFixed(3) + ")";
+    ctx.beginPath();
+    for(let i = 0; i < snow.length; i++){
+      const f = snow[i];
+      const x = f.x * W, y = f.y * H, r = f.r * DPR;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
+    }
+    ctx.fill();
+  }
+}
+
+/* ================================================================= blits */
+function blitLayer(name, t, speed){
+  const y = Math.round(BANDS[name][0] * S);
+  const c = layerCv[name];
+  let p = 0;
+  if(!reduceMotion) p = (t * BASE * speed * S) % W;
+  ctx.drawImage(c, -p, y);
+  if(p > 0.5) ctx.drawImage(c, W - p, y);
+  lastOff[name] = p;
+  return p;
+}
+
+/* ================================================================ render */
+function render(){
+  const m = moodAt(hour);
+  const A = ART[cityIx];
+  const pal = paletteFor(m, A);
+
+  if(cityIx !== lastCityIx){
+    lastCityIx = cityIx;
+    pendingSync = true;
+    markAllDirty();
+  }
+  const ph = palHash(pal);
+  if(ph !== lastPalHash){
+    lastPalHash = ph;
+    markAllDirty();
+  }
+  pumpLayers(pal);
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+
+  drawSky(m);
+  drawCelestial(m);
+  drawClouds(m, tNow);
+  blitLayer("far", tNow, SPEED.far);
+  drawHaze(m, pal);
+  drawWater(m, pal, tNow);
+  drawWaterActors(m, pal, tNow);
+  blitLayer("mid", tNow, SPEED.mid);
+  drawMidActors(m, pal, tNow);
+  blitLayer("near", tNow, SPEED.near);
+  drawLeaves(pal);
+  drawFireflies(m, tNow);
+  drawWeather(m);
+  if(vignetteCv) ctx.drawImage(vignetteCv, 0, 0);
+}
+
+/* =================================================================== loop */
+let last = performance.now();
+let tNow = 0;
+let lastKey = "";
+
+function tick(now){
+  const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+  last = now;
+  if(!reduceMotion) tNow += dt;
+
+  if(cycleOn){
+    hour = (hour + dt * (24 / 420)) % 24;      // full day in seven minutes
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+  updateWeather(dt);
+
+  // With reduced motion and no weather the frame is stable; only repaint when
+  // something actually changed (time slider, city, weather, resize).
+  const moving = !reduceMotion || cycleOn || rainAmt >= 0.01 || snowAmt >= 0.01;
+  const key = hour.toFixed(3) + "|" + cityIx + "|" + placeIx + "|" +
+    rainAmt.toFixed(2) + "|" + snowAmt.toFixed(2) + "|" + cloudAmt.toFixed(2) +
+    "|" + W + "x" + H;
+  if(moving || key !== lastKey){
+    lastKey = key;
+    render();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ===================================================================== UI */
+const ui = document.getElementById("ui");
+const hourInput = document.getElementById("hour");
+const clockEl = document.getElementById("clock");
+const cycleBtn = document.getElementById("cycle");
+const cityBtns = Array.from(document.querySelectorAll("[data-city]"));
+const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
+
+const pad2 = n => String(n).padStart(2, "0");
+function fmtHour(h){
+  const x = ((h % 24) + 24) % 24;
+  const hh = Math.floor(x), mm = Math.min(59, Math.round((x - hh) * 60));
+  return pad2(hh) + ":" + pad2(mm);
+}
+function updateClock(){ clockEl.textContent = fmtHour(hour); }
+function ownHour(){
+  const d = new Date();
+  return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+}
+updateClock();
+
+hourInput.addEventListener("input", () => {
+  hour = parseFloat(hourInput.value);
+  cycleOn = false;
+  cycleBtn.setAttribute("aria-pressed", "false");
+  updateClock();
+  updateInfo();
+  savePrefs();
+});
+
+cycleBtn.addEventListener("click", () => {
+  cycleOn = !cycleOn;
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  updateInfo();
+  savePrefs();
+});
+
+function setWeather(which){
+  currentWx = which;
+  rainTarget = which === "rain" ? 1 : 0;
+  snowTarget = which === "snow" ? 1 : 0;
+  for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === which));
+}
+// A hand-picked sky overrides the live feed but keeps the chosen city (the
+// prototype is about the city silhouette; relax.html dropped the location).
+function manualWeather(which){
+  wxAuto = false;
+  cloudAmt = 0;
+  setWeather(which);
+  updateInfo();
+  savePrefs();
+}
+for(const b of wxBtns) b.addEventListener("click", () => manualWeather(b.dataset.wx));
+
+/* ------------------------------------------------------------------- places */
+// Real city clocks (Intl handles DST) plus live conditions from Open-Meteo,
+// which needs no key and allows browser requests. Offline, the clock still
+// works and the weather simply stays as it was.
+let placeIx = 1, placeTemp = null, placeCode = null;
+let wxAuto = true, fetchState = "idle", lastFetchAt = 0;
+
+function wxToCode(kind){ return kind === "rain" ? 61 : kind === "snow" ? 71 : 0; }
+
+function condLabel(code){
+  if(code === 0) return "Clear sky";
+  if(code <= 2) return "Partly cloudy";
+  if(code === 3) return "Overcast";
+  if(code === 45 || code === 48) return "Fog";
+  if(code >= 51 && code <= 57) return "Drizzle";
+  if(code >= 61 && code <= 67) return "Rain";
+  if(code >= 71 && code <= 77) return "Snow";
+  if(code >= 80 && code <= 82) return "Showers";
+  if(code === 85 || code === 86) return "Snow showers";
+  if(code >= 95) return "Thunderstorm";
+  return "—";
+}
+
+function localHour(tz){
+  try{
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false
+    }).formatToParts(new Date());
+    const h = Number(parts.find(p => p.type === "hour").value) % 24;
+    const m = Number(parts.find(p => p.type === "minute").value);
+    return h + m / 60;
+  }catch(e){ return hour; }
+}
+
+function weatherKind(code){
+  if([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
+  if((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  return "clear";
+}
+
+function updatePlaceLabel(){
+  for(const b of cityBtns){
+    const on = placeIx === null ? b.dataset.city === "local" : b.dataset.city === String(placeIx);
+    b.setAttribute("aria-pressed", String(on));
+  }
+}
+
+async function refreshPlaceWeather(){
+  if(placeIx === null) return;
+  const L = PLACES[placeIx];
+  fetchState = "loading";
+  updateInfo();
+  try{
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon +
+                "&current=weather_code,temperature_2m,cloud_cover&timezone=auto";
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) throw new Error("http " + r.status);
+    const j = await r.json();
+    const cur = (j && j.current) || {};
+    wxAuto = true;
+    placeCode = Number.isFinite(cur.weather_code) ? Number(cur.weather_code) : null;
+    setWeather(weatherKind(placeCode));
+    cloudAmt = Number.isFinite(cur.cloud_cover) ? clamp(cur.cloud_cover / 100, 0, 1) : 0;
+    placeTemp = Number.isFinite(cur.temperature_2m) ? Math.round(cur.temperature_2m) : null;
+    fetchState = "ok";
+    lastFetchAt = Date.now();
+  }catch(e){
+    fetchState = "error";
+  }
+  updatePlaceLabel();
+  updateInfo();
+}
+
+function selectCity(ix){
+  placeIx = Number.isInteger(ix) ? ix : null;
+  placeTemp = null;
+  placeCode = null;
+  cityIx = placeIx === null ? 0 : placeIx + 1;
+  if(placeIx === null){
+    // own-time mode: the plain garden, driven by your own clock
+    wxAuto = false;
+    cloudAmt = 0;
+    fetchState = "idle";
+    hour = ownHour();
+    cycleOn = false;
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+    updatePlaceLabel();
+  }else{
+    wxAuto = true;
+    hour = localHour(PLACES[placeIx].tz);
+    cycleOn = false;
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+    updatePlaceLabel();
+    refreshPlaceWeather();
+  }
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  updateInfo();
+  savePrefs();
+}
+for(const b of cityBtns) b.addEventListener("click", () => {
+  selectCity(b.dataset.city === "local" ? null : Number(b.dataset.city));
+});
+
+/* -------------------------------------------------------------- corner card */
+const info = document.getElementById("info");
+const infoHead = document.getElementById("infoHead");
+const infoPlace = document.getElementById("infoPlace");
+const infoClock = document.getElementById("infoClock");
+const infoRefresh = document.getElementById("infoRefresh");
+const infoCond = document.getElementById("infoCond");
+const infoTemp = document.getElementById("infoTemp");
+const infoMeta = document.getElementById("infoMeta");
+const infoScene = document.getElementById("infoScene");
+
+function updateInfo(){
+  const place = placeIx === null ? null : PLACES[placeIx];
+  const realH = place ? localHour(place.tz) : ownHour();
+
+  infoPlace.textContent = place ? place.name : "Own time";
+  infoClock.textContent = fmtHour(realH);
+
+  if(place){
+    infoCond.textContent = !wxAuto ? condLabel(wxToCode(currentWx))
+      : fetchState === "loading" ? "Loading…"
+      : placeCode === null ? "—" : condLabel(placeCode);
+    infoTemp.textContent = placeTemp === null ? "" : Math.round(placeTemp) + "°C";
+  }else{
+    infoCond.textContent = condLabel(wxToCode(currentWx));
+    infoTemp.textContent = "";
+  }
+
+  const age = lastFetchAt ? Math.round((Date.now() - lastFetchAt) / 60000) : null;
+  infoMeta.textContent = (!place || !wxAuto) ? "Weather set by hand"
+    : fetchState === "error" ? "Offline · last known"
+    : fetchState !== "ok" ? "Fetching…"
+    : "Open-Meteo" + (age === null ? "" : " · " + (age < 1 ? "just now" : age + "m ago"));
+
+  const differs = Math.abs(hour - realH) > 0.12;
+  infoScene.hidden = !differs;
+  if(differs) infoScene.textContent = "Scene " + fmtHour(hour) + (cycleOn ? " · cycling" : "");
+
+  const busy = fetchState === "loading" && !!place;
+  infoRefresh.disabled = !place;
+  infoRefresh.classList.toggle("spin", busy);
+  infoRefresh.title = place ? "Refresh this city now" : "Pick a location to refresh its weather";
+  infoHead.setAttribute("aria-expanded", String(!info.classList.contains("closed")));
+}
+
+function refreshNow(){
+  if(placeIx === null || fetchState === "loading") return;
+  if(!cycleOn){
+    hour = localHour(PLACES[placeIx].tz);
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+  refreshPlaceWeather();
+}
+
+function setInfoOpen(open){
+  info.classList.toggle("closed", !open);
+  infoHead.setAttribute("aria-expanded", String(open));
+  updateInfo();
+  savePrefs();
+}
+infoHead.addEventListener("click", () => setInfoOpen(info.classList.contains("closed")));
+infoHead.addEventListener("keydown", e => {
+  if(e.target !== infoHead) return;
+  if(e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  setInfoOpen(info.classList.contains("closed"));
+});
+infoRefresh.addEventListener("click", e => {
+  e.stopPropagation();
+  refreshNow();
+});
+setInterval(updateInfo, 1000);
+
+// keep the chosen city's clock honest, and refresh its weather now and then
+setInterval(() => {
+  if(placeIx === null) return;
+  const t = localHour(PLACES[placeIx].tz);
+  if(Math.abs(t - hour) > 0.02 && !cycleOn){
+    hour = t;
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+}, 30000);
+setInterval(() => { if(placeIx !== null && wxAuto) refreshPlaceWeather(); }, 15 * 60 * 1000);
+
+/* ------------------------------------------------------------------- prefs */
+const PREF_KEY = "pagoda-silhouette.v1";
+let prefTimer = 0;
+function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 600); }
+function savePrefs(){
+  try{
+    localStorage.setItem(PREF_KEY, JSON.stringify({
+      hour, cycleOn, wx: currentWx, city: placeIx,
+      infoOpen: !info.classList.contains("closed")
+    }));
+  }catch(e){}
+}
+addEventListener("pagehide", savePrefs);
+
+/* -------------------------------------------------------------------- boot */
+function boot(){
+  resize();
+  let p = null;
+  try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); }catch(e){}
+  if(p){
+    if(typeof p.wx === "string") setWeather(p.wx);
+    if(Number.isFinite(p.hour)) hour = p.hour;
+    if(typeof p.cycleOn === "boolean") cycleOn = p.cycleOn;
+    if(typeof p.infoOpen === "boolean") info.classList.toggle("closed", !p.infoOpen);
+  }
+  hourInput.value = hour.toFixed(2);
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  updateClock();
+  const city = (p && Number.isInteger(p.city) && PLACES[p.city]) ? p.city : 0;   // Vancouver by default
+  selectCity(city);
+  updateInfo();
+  requestAnimationFrame(tick);
+}
+boot();
+</script>
+</body>
+</html>
