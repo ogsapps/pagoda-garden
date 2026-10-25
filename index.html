@@ -61,6 +61,17 @@
   #infoBody .row{display:flex;gap:6px;align-items:baseline}
   #infoBody .muted{color:#93a6b3;font-size:11.5px;line-height:1.35}
   @media (max-width:620px){ #info{top:10px;left:10px;min-width:150px} }
+  /* the way back to the city page: the bar's glass, top-right, out of the way */
+  #backCity{position:fixed;top:14px;right:14px;z-index:6;display:inline-flex;align-items:center;
+      padding:6px 11px;border-radius:999px;color:#cfdae2;text-decoration:none;
+      background:rgba(14,20,26,.52);border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      font:12.5px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+      box-shadow:0 8px 20px rgba(0,0,0,.22);transition:background .15s,color .15s}
+  #backCity:hover{background:rgba(255,255,255,.13);color:#fff}
+  #backCity:focus-visible{outline:2px solid #e8cb84;outline-offset:2px}
+  #backCity[hidden]{display:none}
+  @media (max-width:620px){ #backCity{top:10px;right:10px;padding:5px 9px;font-size:11.5px} }
   #ui .lbl{color:#93a6b3;font-size:12px}
   .grp{display:flex;align-items:center;gap:8px}
   input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
@@ -129,6 +140,8 @@
   </div>
 </div>
 
+<a id="backCity" href="./proto/pixel/" hidden>&larr; back to the city</a>
+
 <script>
 "use strict";
 
@@ -175,9 +188,8 @@ function resize(){
 addEventListener("resize", resize);
 
 /* ------------------------------------------------------------------- world */
-// Every scene is voxels from the same little vocabulary: a 22x22 plot, water, a path,
-// trees, the pagoda, and one landmark that names the city. Each scene derives its own
-// arrays and its own camera fit, so switching cities is a reference swap.
+// The garden is voxels from one small vocabulary: a 22x22 plot, water, a path,
+// trees and the pagoda. Its arrays and its camera fit are derived once, at load.
 const COL = {
   grassA:"#68a84c", grassB:"#74b855",
   stone:"#969599", stoneTop:"#a5a4a9", path:"#a39c8d",
@@ -208,9 +220,8 @@ function shade(col, f){
   return str;
 }
 
-// `frame` pins a scene to another scene's camera framing, so the garden stays the
-// same size and in the same place on screen in every city and only the skyline changes.
-function makeScene(name, lamps, build, frame){
+// `build` fills the voxel list; the plot is then centred and fitted to the screen.
+function makeScene(name, lamps, build){
   const vox = [], seen = new Set();
   const put = (x, y, z, c) => {
     const k = x + "," + y + "," + z;
@@ -224,23 +235,18 @@ function makeScene(name, lamps, build, frame){
   };
   build({ put, rep });
 
-  let cx, cy, cz, fit;
-  if(frame){
-    cx = frame.cx; cy = frame.cy; cz = frame.cz; fit = frame.fit;
-  }else{
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for(const v of vox){
-      if(v[0] < minX) minX = v[0];
-      if(v[0] > maxX) maxX = v[0];
-      if(v[1] < minY) minY = v[1];
-      if(v[1] > maxY) maxY = v[1];
-      if(v[2] < minZ) minZ = v[2];
-      if(v[2] > maxZ) maxZ = v[2];
-    }
-    cx = (minX + maxX + 1) / 2; cy = (minY + maxY + 1) / 2; cz = (minZ + maxZ + 1) / 2;
-    const extX = maxX + 1 - minX, extY = maxY + 1 - minY, extZ = maxZ + 1 - minZ;
-    fit = Math.max(extX, extZ, extY * 1.35) + 6;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for(const v of vox){
+    if(v[0] < minX) minX = v[0];
+    if(v[0] > maxX) maxX = v[0];
+    if(v[1] < minY) minY = v[1];
+    if(v[1] > maxY) maxY = v[1];
+    if(v[2] < minZ) minZ = v[2];
+    if(v[2] > maxZ) maxZ = v[2];
   }
+  const cx = (minX + maxX + 1) / 2, cy = (minY + maxY + 1) / 2, cz = (minZ + maxZ + 1) / 2;
+  const extX = maxX + 1 - minX, extY = maxY + 1 - minY, extZ = maxZ + 1 - minZ;
+  const fit = Math.max(extX, extZ, extY * 1.35) + 6;
 
   const n = vox.length;
   const pos = new Float64Array(n * 6);
@@ -287,7 +293,7 @@ function makeScene(name, lamps, build, frame){
   };
 }
 
-/* ------------------------------------------------------------ scene pieces */
+/* ------------------------------------------------------------ garden pieces */
 function plot(P, opts){
   const { water, path, g1, g2, edge } = opts;
   const waterSet = new Set(water), pathSet = new Set(path);
@@ -331,60 +337,8 @@ function leafyTree(P, x, z, c1, c2){
   }
   P.put(x, 6, z, c1);
 }
-function conifer(P, x, z, h, c1, c2){
-  P.put(x, 1, z, COL.trunk);
-  for(let y = 2; y <= h; y++){
-    const r = y > h - 2 ? 0 : (y > h - 4 ? 1 : 2);
-    for(let dx = -r; dx <= r; dx++) for(let dz = -r; dz <= r; dz++){
-      if(Math.abs(dx) + Math.abs(dz) > r + 1) continue;
-      P.put(x + dx, y, z + dz, ((y + dx + dz) & 1) ? c1 : c2);
-    }
-  }
-  P.put(x, h + 1, z, c2);
-}
-function maple(P, x, z, c1, c2, c3){
-  P.put(x, 1, z, COL.trunk); P.put(x, 2, z, COL.trunk); P.put(x, 3, z, COL.trunk);
-  for(let dx = -2; dx <= 2; dx++) for(let dz = -2; dz <= 2; dz++){
-    if(Math.abs(dx) + Math.abs(dz) > 3) continue;
-    const c = ((dx * 3 + dz * 5) % 3 === 0) ? c1 : ((dx + dz) & 1 ? c2 : c3);
-    P.put(x + dx, 4, z + dz, c);
-    if(Math.abs(dx) + Math.abs(dz) <= 1) P.put(x + dx, 5, z + dz, c);
-  }
-  P.put(x, 6, z, c1);
-}
-function palm(P, x, z, lean){
-  let lx = x;
-  for(let y = 1; y <= 5; y++){
-    P.put(lx, y, z, COL.trunk);
-    if(y > 2 && Math.sign(lean)) lx += Math.sign(lean);
-  }
-  const top = 6;
-  P.put(lx, top, z, COL.leaf);
-  for(const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){
-    P.put(lx + dx, top, z + dz, COL.leaf2);
-    if(dx && dz) continue;
-    P.put(lx + dx * 2, top, z + dz * 2, COL.leaf);
-  }
-  P.put(lx, top + 1, z, COL.leaf2);
-}
-function tower(P, x0, z0, w, h, body, cap){
-  for(let y = 1; y <= h; y++){
-    for(let x = x0; x < x0 + w; x++) for(let z = z0; z < z0 + w; z++){
-      const win = (y % 3 === 0) && ((x + z) % 2 === 0);
-      P.put(x, y, z, win ? cap : body);
-    }
-  }
-  for(let x = x0; x < x0 + w; x++) for(let z = z0; z < z0 + w; z++) P.put(x, h + 1, z, cap);
-}
-function house(P, x, z, w, h, body, roof){
-  for(let y = 1; y <= h; y++) for(let i = 0; i < w; i++) P.put(x + i, y, z, body);
-  for(let i = 0; i < w; i++) P.put(x + i, h + 1, z, roof);
-  if(w >= 3) P.put(x + 1, h + 2, z, roof);
-}
-
-/* ----------------------------------------------------------------- scenes */
+/* ----------------------------------------------------------------- garden */
 const GARDEN_LAMPS = [[12.55, 3.6, 15.0, 1.30], [12.9, 1.4, 11.2, 0.70], [10.4, 0.9, 5.0, 0.55], [9.4, 0.9, 8.0, 0.55]];
-const WARM_LAMPS = [[12.55, 3.6, 15.0, 1.15], [9.6, 1.4, 11.2, 0.55]];
 
 function buildGarden(P){
   const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
@@ -398,128 +352,7 @@ function buildGarden(P){
   pagoda(P, COL.roof, COL.wall, COL.gold);
 }
 
-function buildVancouver(P){
-  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
-  plot(P, { water: box(2, 3, 8, 10), path, g1: "#4d7c46", g2: "#578a4d", edge: "#8f8a80" });
-  // orca breaking the surface: black back, white saddle, dorsal fin
-  P.put(4, 1, 6, "#1d2733"); P.put(5, 1, 6, "#1d2733"); P.put(6, 1, 7, "#1d2733");
-  P.put(4, 1, 7, "#eef2f5"); P.put(5, 2, 6, "#1d2733"); P.put(5, 3, 6, "#1d2733");
-  P.put(6, 2, 7, "#1d2733"); P.put(3, 1, 7, "#1d2733");
-  // mossy rocks along the shore
-  [[9,4],[9,5],[2,4],[2,9],[8,11]].forEach(([x, z]) => { P.put(x, 1, z, "#6f7468"); P.put(x, 1, z + 1, "#7c8173"); });
-  conifer(P, 2, 13, 7, "#24512f", "#2e6338");
-  conifer(P, 6, 17, 8, "#1f4729", "#2a5c33");
-  conifer(P, 19, 5, 7, "#24512f", "#2e6338");
-  conifer(P, 17, 2, 6, "#1f4729", "#2a5c33");
-  conifer(P, 4, 9, 5, "#265730", "#2e6338");
-  // cedar trunks and stumps
-  P.put(7, 1, 13, "#5b4632"); P.put(8, 1, 14, "#5b4632");
-  pagoda(P, COL.roof, COL.wall, COL.gold);
-}
-
-function buildToronto(P){
-  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
-  plot(P, { water: box(0, 19, 21, 21), path, g1: "#7d8a52", g2: "#899660" });
-  maple(P, 2, 13, "#c0592a", "#d98a2b", "#a83f27");
-  maple(P, 6, 17, "#d98a2b", "#c0592a", "#e0a63c");
-  maple(P, 19, 5, "#a83f27", "#c0592a", "#d98a2b");
-  maple(P, 17, 2, "#c0592a", "#e0a63c", "#a83f27");
-  // CN Tower
-  const stone = "#b9b7ae", glass = "#7f97a8";
-  for(let y = 1; y <= 9; y++) for(let x = 3; x <= 4; x++) for(let z = 3; z <= 4; z++) P.put(x, y, z, stone);
-  for(let y = 10; y <= 11; y++) for(let x = 2; x <= 5; x++) for(let z = 2; z <= 5; z++) P.put(x, y, z, glass);
-  for(let y = 12; y <= 14; y++) P.put(3, y, 3, stone);
-  P.put(3, 15, 3, "#d8d5cc");
-  // Rogers Centre dome
-  for(let x = 16; x <= 20; x++) for(let z = 2; z <= 4; z++) P.put(x, 1, z, "#cfd3d6");
-  for(let x = 17; x <= 19; x++) for(let z = 2; z <= 3; z++) P.put(x, 2, z, "#dfe3e6");
-  P.put(18, 3, 2, "#dfe3e6"); P.put(18, 3, 3, "#dfe3e6");
-  pagoda(P, COL.roof, COL.wall, COL.gold);
-}
-
-function buildHawaii(P){
-  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
-  plot(P, { water: box(3, 5, 9, 11), path, g1: "#b9ac82", g2: "#c4b78c", edge: "#a89870" });
-  // grass patches on the sand
-  [[1,1],[12,4],[18,18],[4,17]].forEach(([x, z]) => { for(let dx = 0; dx < 3; dx++) for(let dz = 0; dz < 2; dz++) P.put(x + dx, 0, z + dz, "#7fae57"); });
-  palm(P, 2, 13, 1); palm(P, 6, 17, -1); palm(P, 19, 5, 1); palm(P, 17, 2, 0);
-  // black lava rock and hibiscus
-  [[11,5],[12,6],[11,6],[2,9],[3,9]].forEach(([x, z]) => P.put(x, 1, z, "#2b2b30"));
-  [[4,4],[9,9],[13,1],[16,13]].forEach(([x, z]) => P.put(x, 1, z, "#e0576f"));
-  P.put(5, 1, 7, "#f0a03c"); P.put(8, 1, 10, "#e0576f");
-  pagoda(P, COL.roof, COL.wall, COL.gold);
-  // small volcanic cone in the back corner
-  for(let y = 1; y <= 3; y++){
-    const r = 4 - y;
-    for(let x = 1; x <= 1 + r; x++) for(let z = 1; z <= 1 + r; z++) P.put(x, y, z, "#4a3a34");
-  }
-  P.put(2, 4, 2, "#8c4a3a");
-}
-
-function buildHongKong(P){
-  const path = [[9,3],[9,4],[9,5],[10,6],[10,7],[10,8],[11,9],[12,10],[13,11],[14,11],[15,11],[16,11]];
-  plot(P, { water: box(0, 0, 21, 2), path, g1: "#8d9299", g2: "#989da3", edge: "#b7b2a5" });
-  // towers on the back hill
-  tower(P, 2, 4, 2, 9,  "#6d8fa8", "#a8c3d6");
-  tower(P, 5, 5, 2, 12, "#8b8f96", "#c9cdd2");
-  tower(P, 8, 3, 2, 8,  "#7d8b7a", "#b5c3b2");
-  tower(P, 3, 8, 2, 7,  "#6d7f92", "#aabccd");
-  tower(P, 6, 9, 2, 10, "#9a8f86", "#cfc5ba");
-  tower(P, 9, 6, 1, 14, "#77909f", "#b8cfdd");
-  // lantern posts along the path
-  [[9,7],[10,9],[12,10]].forEach(([x, z]) => {
-    P.put(x, 1, z, "#5b4438");
-    P.put(x, 2, z, "#c8342a");
-  });
-  pagoda(P, COL.roof, COL.wall, COL.gold);
-}
-const HK_LAMPS = [[15.4, 4.0, 15.0, 1.15], [9.4, 2.2, 7.0, 0.75], [12.4, 2.2, 10.0, 0.65]];
-
-function buildAmsterdam(P){
-  const canal = [];
-  for(let z = 3; z <= 18; z++){ canal.push([1, z]); canal.push([2, z]); }
-  const path = [[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],[15,10],[15,11],[15,12]];
-  plot(P, { water: canal, path, g1: "#6f9c4b", g2: "#7aa955", edge: "#9d6b52" });
-  // bridges over the canal
-  for(const bz of [6, 14]){
-    for(let x = 0; x <= 3; x++) P.put(x, 1, bz, "#9d6b52");
-    P.put(0, 1, bz - 1, "#8a5c46"); P.put(3, 1, bz - 1, "#8a5c46");
-  }
-  // canal boats
-  P.put(1, 1, 10, "#3e4a52"); P.put(2, 1, 10, "#3e4a52"); P.put(1, 2, 10, "#c9c2b2");
-  // row houses along the back
-  const rows = [
-    [6, 0, 2, 6, "#b4553f", "#7d3a2c"], [8, 0, 3, 8, "#c9c2b2", "#5c4a3a"],
-    [11, 0, 2, 7, "#8a5c46", "#4a3a2e"], [13, 0, 3, 9, "#a3442f", "#6d3226"],
-    [16, 0, 2, 6, "#d5cdbc", "#5c4a3a"], [18, 0, 3, 7, "#9d6b52", "#4a3a2e"]
-  ];
-  for(const [x, z, w, h, body, roof] of rows) house(P, x, z, w, h, body, roof);
-  // tulip beds
-  const tul = ["#d24b6a", "#e8b23c", "#c85a9a", "#e2603f"];
-  for(let i = 0; i < 4; i++){
-    for(let x = 5; x <= 14; x += 2) P.put(x, 1, 3 + i, tul[(i + x) % tul.length]);
-  }
-  leafyTree(P, 2, 15, "#4c7a3a", "#5c8f45");
-  pagoda(P, COL.roof, COL.wall, COL.gold);
-}
-
-const GARDEN = makeScene("Garden", GARDEN_LAMPS, buildGarden);
-const SCENES = [
-  GARDEN,
-  makeScene("Vancouver", GARDEN_LAMPS, buildVancouver, GARDEN),
-  makeScene("Toronto", [[12.55, 3.6, 15.0, 1.25], [9.6, 1.4, 11.2, 0.6]], buildToronto, GARDEN),
-  makeScene("Hawai'i", WARM_LAMPS, buildHawaii, GARDEN),
-  makeScene("Hong Kong", HK_LAMPS, buildHongKong, GARDEN),
-  makeScene("Amsterdam", [[12.55, 3.6, 15.0, 1.2], [4.2, 1.4, 9.2, 0.55]], buildAmsterdam, GARDEN)
-];
-let S = SCENES[0];
-
-function setScene(ix){
-  const next = SCENES[ix] || SCENES[0];
-  if(next === S) return;
-  S = next;
-  cacheState = null;
-}
+const S = makeScene("Garden", GARDEN_LAMPS, buildGarden);
 
 /* ------------------------------------------------------------------ camera */
 let yaw = 3.86, pitch = 0.52;
@@ -1108,6 +941,33 @@ const placesEl = document.getElementById("places");
 const placeBtns = Array.from(document.querySelectorAll("[data-place]"));
 const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
 
+/* ------------------------------------------------------- back to the city */
+// The pixel-art city page sends people here with ?city=<id>; a browser coming
+// straight from it sends a referrer instead. Either way, leave a way back. When
+// the garden is opened on its own the pill never appears.
+const CITY_NAMES = {
+  vancouver: "Vancouver", toronto: "Toronto", hawaii: "Hawai'i",
+  hongkong: "Hong Kong", amsterdam: "Amsterdam", sydney: "Sydney"
+};
+
+function cityFromQuery(){
+  const search = (typeof location !== "undefined" && location.search) || "";
+  const m = /[?&]city=([^&#]*)/.exec(search);
+  if(!m) return null;                                  // no ?city= at all
+  try { return decodeURIComponent(m[1]); } catch(e){ return m[1]; }
+}
+
+(function initBackPill(){
+  const back = document.getElementById("backCity");
+  if(!back) return;
+  const key = cityFromQuery();
+  const referrer = (typeof document !== "undefined" && document.referrer) || "";
+  if(key === null && !/\/proto\/pixel\//i.test(referrer)) return;
+  back.textContent = "\u2190 back to " + (CITY_NAMES[key] || "the city");
+  back.href = "./proto/pixel/" + (key ? "?city=" + encodeURIComponent(key) : "");
+  back.hidden = false;
+})();
+
 function updateClock(){
   const h = ((hour % 24) + 24) % 24;
   const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
@@ -1162,7 +1022,8 @@ for(const b of wxBtns) b.addEventListener("click", () => manualWeather(b.dataset
 /* ------------------------------------------------------------------ places */
 // Real city clocks (Intl handles DST) plus live conditions from Open-Meteo, which
 // needs no key and allows browser requests. Offline, the clock still works and the
-// weather simply stays as it was.
+// weather simply stays as it was. A city drives the clock and the weather only:
+// the garden itself is always this one garden.
 const PLACES = [
   { name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
   { name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
@@ -1243,7 +1104,6 @@ async function refreshPlaceWeather(){
 function selectPlace(ix){
   placeIx = Number.isInteger(ix) ? ix : null;
   placeTemp = null;
-  setScene(placeIx === null ? 0 : placeIx + 1);      // the garden itself follows the city
   if(placeIx === null){
     wxAuto = true;
     cloudAmt = 0;
