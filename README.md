@@ -13,7 +13,7 @@ day/night cycle, weather and procedural ambient audio.
 | Zoom | scroll wheel, pinch, the `−` / `+` buttons, `+` / `-` keys, double-click to reset |
 | Time of day | the time slider, or `cycle` to let a full day pass in seven minutes |
 | Location | `location` picks a city: the scene jumps to that city's local time and its current weather |
-| Weather | `clear` / `rain` / `snow` (picking one by hand stops the location auto-weather) |
+| Weather | `clear` / `rain` / `snow` — picking one by hand leaves location mode, because a location always shows its real weather |
 | Ambience | `sound` (browsers need one click before audio can start), volume slider |
 | Corner card | top-left card shows the place, its real local time, the condition, the temperature and where it came from; click its header to collapse it |
 
