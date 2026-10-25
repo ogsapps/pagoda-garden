@@ -58,11 +58,13 @@ switching is a reference swap — no per-frame cost.
 | Vancouver | an orca breaking the surface, cedar forest, mossy rocks | deep greens, grey stone |
 | Toronto | CN Tower with its pod and antenna, Rogers Centre dome | autumn maples, lake water along one edge |
 | Hawai'i | palms, black lava rock, hibiscus, a small volcanic cone | sand and grass, wide lagoon |
-| Hong Kong | a cluster of towers with lit windows, lantern posts | harbour water, gold-roofed temple |
+| Hong Kong | a cluster of towers with lit windows, lantern posts | harbour water, temple pagoda |
 | Amsterdam | canal with two bridges and a boat, six row houses | brick path, tulip beds, stepped gables |
 
-Each scene derives its own camera fit from its bounding box, so tall scenes (the tower, the
-towers) frame themselves.
+Every scene is framed with the garden's camera (same centre, same scale) and uses the same
+pagoda colours, so the garden itself is pixel-identical in every city and only the skyline,
+the ground and the trees change. Landmarks are kept inside that height envelope — the CN
+Tower is capped just above the pagoda's spire so nothing shrinks or clips when you switch.
 
 ## Notes on the rendering
 
