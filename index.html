@@ -25,6 +25,18 @@
     #hint{display:none}
   }
   #ui.show{opacity:1;pointer-events:auto}
+  #places{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);
+      display:flex;flex-direction:column;gap:3px;padding:7px;border-radius:13px;
+      background:rgba(14,20,26,.74);border:1px solid rgba(255,255,255,.14);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      font:13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;z-index:5;
+      box-shadow:0 14px 34px rgba(0,0,0,.38)}
+  #places[hidden]{display:none}
+  #places button{text-align:left;border:0;background:transparent;color:#cfdae2;
+      padding:7px 12px;border-radius:8px;min-width:136px;white-space:nowrap}
+  #places button:hover{background:rgba(255,255,255,.12);color:#fff}
+  #places button[aria-current="true"]{color:#f4e2b4;background:rgba(232,203,132,.12)}
+  @media (max-width:620px){ #places{bottom:132px} }
   #ui .lbl{color:#93a6b3;font-size:12px}
   .grp{display:flex;align-items:center;gap:8px}
   input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
@@ -53,6 +65,9 @@
     <button id="cycle" aria-pressed="true" title="Slow day and night cycle">cycle</button>
   </div>
   <div class="grp">
+    <button id="place" aria-haspopup="true" aria-expanded="false" title="Match a city's time and weather">location</button>
+  </div>
+  <div class="grp">
     <button data-wx="clear" aria-pressed="true">clear</button>
     <button data-wx="rain" aria-pressed="false">rain</button>
     <button data-wx="snow" aria-pressed="false">snow</button>
@@ -63,8 +78,17 @@
   </div>
   <div class="grp">
     <button id="snd" aria-pressed="false">sound</button>
-    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Volume">
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.25" aria-label="Volume">
   </div>
+</div>
+
+<div id="places" hidden>
+  <button data-place="local">own time</button>
+  <button data-place="0">Vancouver</button>
+  <button data-place="1">Toronto</button>
+  <button data-place="2">Hawai&lsquo;i</button>
+  <button data-place="3">Hong Kong</button>
+  <button data-place="4">Amsterdam</button>
 </div>
 
 <script>
@@ -458,6 +482,14 @@ function drawSceneLayer(now){
     ctx.globalCompositeOperation = "source-over";
   }
 
+  // overcast: a real city's cloud cover flattens the light a little
+  if(cloudAmt > 0.01){
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgba(150,159,172," + (0.20 * cloudAmt).toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
   // weather grade: rain darkens and cools, snow lifts and softens
   if(rainAmt > 0.01){
     ctx.globalCompositeOperation = "multiply";
@@ -528,10 +560,11 @@ function render(now, dt, active){
   const moved = !cacheState || W !== cacheState.w || H !== cacheState.h ||
     Math.abs(yaw - cacheState.yaw) > 0.0006 || Math.abs(pitch - cacheState.pitch) > 0.0006 ||
     Math.abs(zoom - cacheState.zoom) > 0.002 || Math.abs(hour - cacheState.hour) > 0.02 ||
-    Math.abs(rainAmt - cacheState.rain) > 0.02 || Math.abs(snowAmt - cacheState.snow) > 0.02;
+    Math.abs(rainAmt - cacheState.rain) > 0.02 || Math.abs(snowAmt - cacheState.snow) > 0.02 ||
+    Math.abs(cloudAmt - cacheState.cloud) > 0.02;
   if(moved){
     drawSceneLayer(now);
-    cacheState = { yaw, pitch, zoom, hour, rain: rainAmt, snow: snowAmt, w: W, h: H };
+    cacheState = { yaw, pitch, zoom, hour, rain: rainAmt, snow: snowAmt, cloud: cloudAmt, w: W, h: H };
   }
 
   // nothing on screen is moving (no weather, no fireflies, no zoom easing): keep the
@@ -616,7 +649,7 @@ function updateWeather(dt){
 // and a soft high shelf, and the default level is deliberately low so it can play all day.
 let ac = null, master = null, mix = null, send = null;
 let rainGain = null, airGain = null, padGain = null, bassOsc = null;
-let padVoices = [], soundOn = false, vol = 0.5;
+let padVoices = [], soundOn = false, vol = 0.25;
 let chordIx = -1, nextChordAt = 0, nextPluckAt = 0, schedTimer = 0;
 
 const PROG = [
@@ -807,7 +840,7 @@ function startSound(){
   nextPluckAt = t + 4 + Math.random() * 4;
   clearInterval(schedTimer);
   schedTimer = setInterval(scheduler, 250);
-  master.gain.setTargetAtTime(vol * 0.62, t, 0.9);
+  master.gain.setTargetAtTime(vol * 0.55, t, 0.9);
 }
 
 function stopSound(){
@@ -834,6 +867,9 @@ const volInput = document.getElementById("vol");
 const hint = document.getElementById("hint");
 const zinBtn = document.getElementById("zin");
 const zoutBtn = document.getElementById("zout");
+const placeBtn = document.getElementById("place");
+const placesEl = document.getElementById("places");
+const placeBtns = Array.from(document.querySelectorAll("[data-place]"));
 const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
 
 function updateClock(){
@@ -875,7 +911,115 @@ function setWeather(which){
   snowTarget = which === "snow" ? 1 : 0;
   for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === which));
 }
-for(const b of wxBtns) b.addEventListener("click", () => { setWeather(b.dataset.wx); savePrefs(); });
+for(const b of wxBtns) b.addEventListener("click", () => {
+  wxAuto = false; cloudAmt = 0;
+  setWeather(b.dataset.wx);
+  savePrefs();
+});
+
+/* ------------------------------------------------------------------ places */
+// Real city clocks (Intl handles DST) plus live conditions from Open-Meteo, which
+// needs no key and allows browser requests. Offline, the clock still works and the
+// weather simply stays as it was.
+const PLACES = [
+  { name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
+  { name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
+  { name: "Hawai'i",   lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu" },
+  { name: "Hong Kong", lat: 22.3193, lon: 114.1694,  tz: "Asia/Hong_Kong" },
+  { name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" }
+];
+let placeIx = null, placeTemp = null, cloudAmt = 0, wxAuto = true;
+
+function localHour(tz){
+  try{
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false
+    }).formatToParts(new Date());
+    const h = Number(parts.find(p => p.type === "hour").value) % 24;
+    const m = Number(parts.find(p => p.type === "minute").value);
+    return h + m / 60;
+  }catch(e){ return hour; }
+}
+
+function weatherKind(code){
+  if([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
+  if((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  return "clear";
+}
+
+function updatePlaceLabel(){
+  if(placeIx === null){ placeBtn.textContent = "location"; return; }
+  const L = PLACES[placeIx];
+  placeBtn.textContent = L.name + (placeTemp === null ? "" : " " + placeTemp + "°");
+  for(const b of placeBtns) b.setAttribute("aria-current", String(b.dataset.place === String(placeIx)));
+}
+
+async function refreshPlaceWeather(){
+  if(placeIx === null) return;
+  const L = PLACES[placeIx];
+  try{
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat + "&longitude=" + L.lon +
+                "&current=weather_code,temperature_2m,cloud_cover&timezone=auto";
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) return;
+    const j = await r.json();
+    const cur = (j && j.current) || {};
+    wxAuto = true;
+    setWeather(weatherKind(Number(cur.weather_code)));
+    cloudAmt = Number.isFinite(cur.cloud_cover) ? clamp(cur.cloud_cover / 100, 0, 1) : 0;
+    placeTemp = Number.isFinite(cur.temperature_2m) ? Math.round(cur.temperature_2m) : null;
+    updatePlaceLabel();
+  }catch(e){ /* offline: keep the clock, leave the weather alone */ }
+}
+
+function selectPlace(ix){
+  placeIx = Number.isInteger(ix) ? ix : null;
+  placeTemp = null;
+  if(placeIx === null){
+    wxAuto = true;
+    cloudAmt = 0;
+    updatePlaceLabel();
+  }else{
+    hour = localHour(PLACES[placeIx].tz);
+    cycleOn = false;
+    cycleBtn.setAttribute("aria-pressed", "false");
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+    updatePlaceLabel();
+    refreshPlaceWeather();
+  }
+  savePrefs();
+}
+
+function openPlaces(open){
+  placesEl.hidden = !open;
+  placeBtn.setAttribute("aria-expanded", String(open));
+  if(open) showUI();
+}
+placeBtn.addEventListener("click", e => {
+  e.stopPropagation();
+  openPlaces(placesEl.hidden);
+});
+for(const b of placeBtns) b.addEventListener("click", () => {
+  selectPlace(b.dataset.place === "local" ? null : Number(b.dataset.place));
+  openPlaces(false);
+});
+addEventListener("pointerdown", e => {
+  if(!placesEl.hidden && !placesEl.contains(e.target) && e.target !== placeBtn) openPlaces(false);
+}, { passive: true });
+
+// keep the chosen city's clock honest, and refresh its weather now and then
+setInterval(() => {
+  if(placeIx === null) return;
+  const t = localHour(PLACES[placeIx].tz);
+  if(Math.abs(t - hour) > 0.02 && !cycleOn){
+    hour = t;
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+}, 30000);
+setInterval(() => { if(placeIx !== null && wxAuto) refreshPlaceWeather(); }, 15 * 60 * 1000);
+
 
 sndBtn.addEventListener("click", async () => {
   if(!audioInit()) return;
@@ -887,7 +1031,7 @@ sndBtn.addEventListener("click", async () => {
 
 volInput.addEventListener("input", () => {
   vol = parseFloat(volInput.value);
-  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.62, ac.currentTime, 0.2);
+  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.55, ac.currentTime, 0.2);
   savePrefs();
 });
 
@@ -899,12 +1043,16 @@ zinBtn.addEventListener("click", () => nudgeZoom(1.18));
 zoutBtn.addEventListener("click", () => nudgeZoom(1 / 1.18));
 
 /* remember the last look so the page opens the way it was left */
-const PREF_KEY = "pagoda-garden.v2";
+const PREF_KEY = "pagoda-garden.v3";
 let currentWx = "clear";
 let prefTimer = 0;
 function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 600); }
 function savePrefs(){
-  try { localStorage.setItem(PREF_KEY, JSON.stringify({ hour, cycleOn, wx: currentWx, vol, zoom: +zoomTarget.toFixed(3) })); } catch(e){}
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify({
+      hour, cycleOn, wx: currentWx, vol, zoom: +zoomTarget.toFixed(3), place: placeIx
+    }));
+  } catch(e){}
 }
 function loadPrefs(){
   let p = null;
@@ -918,6 +1066,7 @@ function loadPrefs(){
   cycleBtn.setAttribute("aria-pressed", String(cycleOn));
   updateClock();
   setWeather(typeof p.wx === "string" ? p.wx : "clear");
+  if(Number.isInteger(p.place) && PLACES[p.place]) selectPlace(p.place);
 }
 loadPrefs();
 setTimeout(() => { hint.style.opacity = "0"; }, 14000);
