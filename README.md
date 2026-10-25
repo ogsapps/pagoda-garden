@@ -26,8 +26,11 @@ when you stop touching them; move the pointer to bring them back.
   lantern glow at the doorway and two path lamps at night, fireflies over the pond.
 - Weather: rain (streaks plus a cooler, darker wash) and snow (drifting flakes plus a
   soft lift), both cross-faded.
-- Audio: a slow four-chord pad (never resolves), filtered-noise wind with a gust LFO,
-  rain hiss that follows the rain, occasional soft chimes through a delay.
+- Audio: a slow four-chord ambient progression (Dmaj9 - Bm7 - Gmaj7 - Aadd9) played by a
+  five-voice pad and a sub bass, with sparse sine "music box" plucks in a D-major pentatonic
+  through a convolution reverb (impulse generated in the page), plus air and a rain bed.
+  Everything runs through a compressor and a soft high shelf, and the default level is quiet
+  (about -34 dBFS RMS at 50% volume) so it can sit in the background all day.
 
 ## Notes on the rendering
 
