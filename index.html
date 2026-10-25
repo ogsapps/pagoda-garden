@@ -941,12 +941,17 @@ function setWeather(which){
   snowTarget = which === "snow" ? 1 : 0;
   for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === which));
 }
-for(const b of wxBtns) b.addEventListener("click", () => {
-  wxAuto = false; cloudAmt = 0;
-  setWeather(b.dataset.wx);
-  savePrefs();
+// A hand-picked sky means you have left location mode: a location is always its real
+// weather, so overriding one drops the city instead of quietly disagreeing with it.
+function manualWeather(which){
+  if(placeIx !== null) selectPlace(null);
+  wxAuto = false;
+  cloudAmt = 0;
+  setWeather(which);
   updateInfo();
-});
+  savePrefs();
+}
+for(const b of wxBtns) b.addEventListener("click", () => manualWeather(b.dataset.wx));
 
 /* ------------------------------------------------------------------ places */
 // Real city clocks (Intl handles DST) plus live conditions from Open-Meteo, which
