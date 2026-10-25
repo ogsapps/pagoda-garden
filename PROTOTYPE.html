@@ -236,34 +236,76 @@ const PAL = {
     mtnFar:"#8ea5a8", mtnFarHi:"#aec0c1", snow:"#e6eeee", mist:"#c9d6d7",
     mtn:"#45625a", mtnHi:"#5b7d70", fir:"#22382e", firHi:"#31503f", firLo:"#152419",
     tower:"#3b4d56", towerHi:"#5a6f76", towerLo:"#24333a",
-    win:"#e8b564", water:"#173440", waterHi:"#2c5d6c", waterLo:"#0c2029", whale:"#0f1e24"
+    win:"#e8b564", water:"#173440", waterHi:"#2c5d6c", waterLo:"#0c2029", whale:"#0f1e24",
+    // the near tree's four seasonal colour sets (petals / foliage / amber / bark)
+    tree: {
+      trunk:"#3b2a20", branch:"#5a4433", snow:"#e9f1f2",
+      spring:{ c:"#f2bfd0", hi:"#fbe3ec", lo:"#cf8fa6", dot:"#fff4f8" },
+      summer:{ c:"#2f4a38", hi:"#466b4d", lo:"#22382e", dot:"#3c5b45" },
+      autumn:{ c:"#c88a3a", hi:"#e0a94e", lo:"#96602c", dot:"#d89a34" },
+      winter:{ c:"#6b4a35", hi:"#8a6648", lo:"#4a3325", dot:"#e9f1f2" }
+    }
   },
   toronto: {
     haze:"#c6b192", shore:"#8b8372", shoreHi:"#a69d8a",
     twr1:"#4b4237", twr2:"#3a342c", twr3:"#5d5346", twrHi:"#7c705f",
     cn:"#6f6659", cnHi:"#928776",
     maple:"#c07a2c", maple2:"#d89a34", mapleR:"#a8452a", trunk:"#3b2a20",
-    water:"#274a5e", waterHi:"#3f6e83", waterLo:"#152e3c", win:"#ffd08a"
+    water:"#274a5e", waterHi:"#3f6e83", waterLo:"#152e3c", win:"#ffd08a",
+    tree: {
+      trunk:"#3b2a20", branch:"#5b4534", snow:"#eaf1f2",
+      spring:{ c:"#f6dbe4", hi:"#fdf0f4", lo:"#e5b9ca", dot:"#ffffff" },
+      summer:{ c:"#4d6b3f", hi:"#6d8a52", lo:"#374e2d", dot:"#5c7d48" },
+      autumn:{ c:"#c07a2c", hi:"#d89a34", lo:"#a8452a", dot:"#e0a94e" },
+      winter:{ c:"#6a5848", hi:"#84705c", lo:"#4b3d32", dot:"#eaf1f2" }
+    }
   },
   hawaii: {
     ridge:"#3d353d", ridgeHi:"#5e5259", ridgeLo:"#282229", haze:"#c9b7b2",
     sand:"#d9c48c", sandLo:"#bda874", sandHi:"#efdfb2",
     lava:"#241f24", palm:"#2c4030", palmHi:"#47683f", palmLo:"#1b2a1e",
     lagoon:"#1f6f78", lagoonHi:"#3fa0a0", lagoonLo:"#124a55",
-    pink:"#e0576f", cream:"#f2e6d0"
+    pink:"#e0576f", cream:"#f2e6d0",
+    // a hibiscus/plumeria shrub: evergreen in the tropics, so winter keeps a
+    // crown (fewer, paler blooms) instead of going bare
+    tree: {
+      trunk:"#3f3026", branch:"#5a4636", snow:"#eef2f0",
+      spring:{ c:"#e88fa0", hi:"#f6cfd8", lo:"#cf6a7e", dot:"#f6e8d4" },
+      summer:{ c:"#47683f", hi:"#618a52", lo:"#2c4030", dot:"#f2e6d0" },
+      autumn:{ c:"#6f7a3e", hi:"#93a052", lo:"#4c5528", dot:"#e8b3aa" },
+      winter:{ c:"#3a5240", hi:"#4e6b50", lo:"#26382a", dot:"#f4cfc8" }
+    }
   },
   hongkong: {
     hill:"#1b3b40", hillHi:"#2a545a",
     t1:"#17323a", t2:"#1e424b", t3:"#26525c", tHi:"#3c6c74",
     neon:"#e0303a", neon2:"#ff6a4a", amber:"#ffc25e", win:"#ffd08a",
     water:"#0f2a33", waterHi:"#245a66", waterLo:"#081a20",
-    haze:"#7d99a2", sail:"#a83a30"
+    haze:"#7d99a2", sail:"#a83a30",
+    // bauhinia: orchid-pink blossom in spring, dense green summer, a little
+    // autumn colour, and a bare-ish subtropical winter
+    tree: {
+      trunk:"#2b2320", branch:"#453630", snow:"#e9f1f2",
+      spring:{ c:"#d886b6", hi:"#efc2da", lo:"#a8558a", dot:"#f7dcea" },
+      summer:{ c:"#3b5a44", hi:"#527a58", lo:"#283e2e", dot:"#6f944f" },
+      autumn:{ c:"#a87a3a", hi:"#c99a4e", lo:"#7a5528", dot:"#d8a552" },
+      winter:{ c:"#5a4636", hi:"#75604c", lo:"#3d3028", dot:"#e9f1f2" }
+    }
   },
   amsterdam: {
     brickA:"#8f3f2e", brickB:"#a9563c", brickC:"#c07050", brickD:"#d9c6a8",
     roof:"#463630", roofLo:"#2b2320", trim:"#ece0c8", door:"#3f3026",
     canal:"#2c5142", canalHi:"#4b7f68", canalLo:"#19312a",
-    gold:"#d8a552", tulipR:"#d24b6a", tulipY:"#e8b23c", leaf:"#3d5a3a", tree:"#4d6b46"
+    gold:"#d8a552", tulipR:"#d24b6a", tulipY:"#e8b23c", leaf:"#3d5a3a", elm:"#4d6b46",
+    // the canal-side elm: fresh samara green in spring, deep green summer,
+    // amber autumn, bare winter
+    tree: {
+      trunk:"#3b3028", branch:"#55463a", snow:"#e9f1f2",
+      spring:{ c:"#a8c47a", hi:"#c9e0a0", lo:"#7fa15c", dot:"#e8e2b0" },
+      summer:{ c:"#3d5a3a", hi:"#587a4c", lo:"#2c4229", dot:"#4d6b46" },
+      autumn:{ c:"#a8762e", hi:"#c99a44", lo:"#7c5522", dot:"#d8a552" },
+      winter:{ c:"#5c4c3c", hi:"#77654f", lo:"#41352a", dot:"#e9f1f2" }
+    }
   },
   sydney: {
     haze:"#b9c9cf", farHill:"#7d98a0", farHillHi:"#9ab2b8", farLo:"#5c7680",
@@ -275,46 +317,136 @@ const PAL = {
     sand:"#d9c79c", sandHi:"#efdfb2",
     jac:"#8b7fbd", jacHi:"#a99dd6", jacLo:"#5f5686", bark:"#3a3129",
     ferry:"#e8e6dc", ferryGreen:"#2f6b52",
-    water:"#1b4453", waterHi:"#2f6a7d", waterLo:"#0d2530"
+    water:"#1b4453", waterHi:"#2f6a7d", waterLo:"#0d2530",
+    // southern hemisphere, so the crown runs inverted: purple blossom in
+    // spring (Oct), green summer, thinned olive autumn, bare-ish winter
+    tree: {
+      trunk:"#3a3129", branch:"#54473c", snow:"#eef2f0",
+      spring:{ c:"#8b7fbd", hi:"#a99dd6", lo:"#5f5686", dot:"#c8c0e8" },
+      summer:{ c:"#4c6b45", hi:"#6b8b57", lo:"#375032", dot:"#7fa15c" },
+      autumn:{ c:"#7e8450", hi:"#9aa066", lo:"#5f6538", dot:"#b0a060" },
+      winter:{ c:"#6a5a48", hi:"#88765f", lo:"#4c4034", dot:"#eef2f0" }
+    }
   }
 };
 
 /* ------------------------------------------------------------ city records
    One record per city.  Everything that differs between cities lives here:
    the palette, the landmark art key, the clock zone, the coordinates for the
-   Open-Meteo fetch, the drift key, and any per-city rules (Sydney has no snow
-   in its summer).  The builders way below are just a table keyed by landmark. */
+   Open-Meteo fetch, the drift key, any per-city rules (Sydney has no snow in
+   its summer), and the near/mid `tree` spec that is the source of the drift.
+   The builders way below are just a table keyed by landmark.
+
+   `tree`: one species per city, baked into a layer with four seasonal crowns:
+     kind    species label (documentation + harness)
+     layer   "near" or "mid" (which baked layer it belongs to)
+     x       frame x as a fraction of BW; an array means a small group of
+             trunks of the same species (Toronto's maples, Sydney's jacarandas)
+     baseY   trunk foot as a fraction of BH (0.665 == the waterline)
+     h       trunk height in art px at the 480x270 reference size (array ok)
+     form    silhouette: w/h crown box, cluster count, trunk width, lean
+     crowns  per season: { w,h } size multipliers, `dots` bloom count,
+             `gap` for the sky holes in autumn, or `bare: true` for winter
+   The crown colours themselves live in PAL[city].tree[season]. */
 const CITIES = [
   {
     id: "vancouver", name: "Vancouver", seed: 11,
     lat: 49.2827, lon: -123.1207, tz: "America/Vancouver",
-    palette: PAL.vancouver, landmark: "vancouver", drift: "vancouver"
+    palette: PAL.vancouver, landmark: "vancouver", drift: "vancouver",
+    // a cherry on the far shore: blossom in spring, then a dark fir-green
+    // canopy (its summer drift is fir needles), amber autumn, bare winter
+    tree: {
+      kind: "cherry", layer: "mid", x: 0.865, baseY: 0.665, h: 38,
+      form: { w: 28, h: 26, clusters: 3, trunk: 2, lean: -2, shape: "broad" },
+      crowns: {
+        spring: { w: 1.00, h: 0.95, dots: 9, lift: 0.55 },
+        summer: { w: 1.06, h: 1.05, dots: 0, lift: 0.55 },
+        autumn: { w: 0.96, h: 0.90, dots: 3, gap: 0.55, lift: 0.55 },
+        winter: { bare: true, twig: 0.85 }
+      }
+    }
   },
   {
     id: "toronto", name: "Toronto", seed: 23,
     lat: 43.6532, lon: -79.3832, tz: "America/Toronto",
-    palette: PAL.toronto, landmark: "toronto", drift: "toronto"
+    palette: PAL.toronto, landmark: "toronto", drift: "toronto",
+    // the two maples on the near island bank, moved into the tree system
+    tree: {
+      kind: "maple", layer: "near", x: [0.762, 0.868], baseY: 0.942, h: [38, 30],
+      form: { w: 29, h: 27, clusters: 3, trunk: 2, lean: 1, shape: "broad" },
+      crowns: {
+        spring: { w: 1.00, h: 0.92, dots: 0, lift: 0.55 },
+        summer: { w: 1.08, h: 1.06, dots: 0, lift: 0.55 },
+        autumn: { w: 1.00, h: 0.95, dots: 0, gap: 0.50, lift: 0.55 },
+        winter: { bare: true, twig: 0.90 }
+      }
+    }
   },
   {
     id: "hawaii", name: "Hawai'i", seed: 37,
     lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu",
-    palette: PAL.hawaii, landmark: "hawaii", drift: "hawaii"
+    palette: PAL.hawaii, landmark: "hawaii", drift: "hawaii",
+    // a plumeria/hibiscus shrub on the beach; tropical, so it never goes bare
+    tree: {
+      kind: "plumeria", layer: "mid", x: 0.47, baseY: 0.665, h: 15,
+      form: { w: 34, h: 24, clusters: 4, trunk: 2, lean: 1, shape: "shrub" },
+      crowns: {
+        spring: { w: 0.98, h: 0.92, dots: 10, lift: 0.60 },
+        summer: { w: 1.06, h: 1.02, dots: 7, lift: 0.60 },
+        autumn: { w: 0.98, h: 0.94, dots: 5, gap: 0.28, lift: 0.60 },
+        winter: { w: 0.92, h: 0.88, dots: 4, lift: 0.60 }
+      }
+    }
   },
   {
     id: "hongkong", name: "Hong Kong", seed: 41,
     lat: 22.3193, lon: 114.1694, tz: "Asia/Hong_Kong",
-    palette: PAL.hongkong, landmark: "hongkong", drift: "hongkong"
+    palette: PAL.hongkong, landmark: "hongkong", drift: "hongkong",
+    // a bauhinia on the Kowloon promenade, in front of the tower wall
+    tree: {
+      kind: "bauhinia", layer: "mid", x: 0.72, baseY: 0.665, h: 34,
+      form: { w: 27, h: 24, clusters: 3, trunk: 2, lean: -1, shape: "broad" },
+      crowns: {
+        spring: { w: 1.00, h: 0.94, dots: 7, lift: 0.55 },
+        summer: { w: 1.08, h: 1.06, dots: 0, lift: 0.55 },
+        autumn: { w: 0.96, h: 0.92, dots: 0, gap: 0.35, lift: 0.55 },
+        winter: { bare: true, twig: 0.80 }
+      }
+    }
   },
   {
     id: "amsterdam", name: "Amsterdam", seed: 53,
     lat: 52.3676, lon: 4.9041, tz: "Europe/Amsterdam",
-    palette: PAL.amsterdam, landmark: "amsterdam", drift: "amsterdam"
+    palette: PAL.amsterdam, landmark: "amsterdam", drift: "amsterdam",
+    // the canal-side elms, standing on the far bank in the gable gaps
+    tree: {
+      kind: "elm", layer: "mid", x: [0.400, 0.585], baseY: 0.665, h: [28, 36],
+      form: { w: 24, h: 30, clusters: 3, trunk: 2, lean: 0, shape: "tall" },
+      crowns: {
+        spring: { w: 0.94, h: 1.00, dots: 6, lift: 0.50 },
+        summer: { w: 1.04, h: 1.08, dots: 0, lift: 0.50 },
+        autumn: { w: 0.94, h: 0.96, dots: 0, gap: 0.45, lift: 0.50 },
+        winter: { bare: true, twig: 0.85 }
+      }
+    }
   },
   {
     id: "sydney", name: "Sydney", seed: 61,
     lat: -33.8688, lon: 151.2093, tz: "Australia/Sydney",
     palette: PAL.sydney, landmark: "sydney", drift: "sydney",
-    noSnow: ["summer"]      // December is high summer here: no snow, by construction
+    noSnow: ["summer"],      // December is high summer here: no snow, by construction
+    // the two jacarandas on the sandstone quay, moved into the tree system;
+    // the hemisphere inverts the calendar, not the crown colours
+    tree: {
+      kind: "jacaranda", layer: "near", x: [0.680, 0.810], baseY: 0.925, h: [36, 29],
+      form: { w: 28, h: 27, clusters: 3, trunk: 2, lean: -1, shape: "tall" },
+      crowns: {
+        spring: { w: 1.00, h: 1.00, dots: 8, lift: 0.52 },
+        summer: { w: 1.06, h: 1.06, dots: 0, lift: 0.52 },
+        autumn: { w: 0.86, h: 0.90, dots: 0, gap: 0.60, lift: 0.52 },
+        winter: { bare: true, twig: 0.95, tuft: 2 }
+      }
+    }
   }
 ];
 
@@ -365,8 +497,10 @@ function seasonNow(id){
 /* ---------------------------------------------------------- seasonal drift
    One table keyed by (city id, season): sprite colours, fall rate, sideways
    wobble, how much of the shared particle pool to use, and the sprite shape.
-   `cols` are palette values or hex; `tree: true` seeds the particles around
-   the city's baked tree crowns instead of scattering them over the frame.
+   `cols` are palette values or hex.  The particles now leave from the emitters
+   of the city's baked tree crowns (`scene.treeEmitters`); `ambient` is the
+   optional fraction of the pool that still trickles in from the top of the
+   frame (only Hong Kong's summer haze motes use it — haze has no canopy).
    A season mapped to null means no drift at all. */
 const PLUMERIA = { cols: [PAL.hawaii.cream, "#f4cfc8", "#e8b3aa"],
                    rate: 6, wobble: 11, n: 14, shape: "petal" };
@@ -381,7 +515,7 @@ const DRIFT = {
     spring: { cols: ["#f6dbe4", "#eec3d1", "#fdf0f4"], rate: 9,  wobble: 13, n: 18, shape: "petal" },  // blossom
     summer: { cols: ["#dfd6ad", "#c6b98a", "#f1ead0"], rate: 7,  wobble: 20, n: 12, shape: "seed"  },  // seeds
     autumn: { cols: [PAL.toronto.maple, PAL.toronto.maple2, PAL.toronto.mapleR],
-                       rate: 13, wobble: 16, n: 24, shape: "leaf", tree: true },                       // maple
+                       rate: 13, wobble: 16, n: 24, shape: "leaf" },                                    // maple
     winter: null
   },
   hawaii: {                                  // plumeria, all year round
@@ -389,12 +523,15 @@ const DRIFT = {
   },
   hongkong: {
     spring: { cols: ["#d886b6", "#c266a0", "#efc2da"], rate: 8, wobble: 13, n: 14, shape: "petal" },  // bauhinia
-    summer: { cols: ["#dfe8ec", "#c9d6db", "#f2f6f7"], rate: 3, wobble: 5,  n: 16, shape: "mote"  },  // haze
+    summer: { cols: ["#dfe8ec", "#c9d6db", "#f2f6f7"], rate: 3, wobble: 5,  n: 16, shape: "mote",
+              ambient: 1 },                                                                     // sea haze
     autumn: null,
     winter: null
   },
   amsterdam: {
-    spring: { cols: [PAL.amsterdam.tulipR, PAL.amsterdam.tulipY, "#c85a9a"], rate: 9, wobble: 12, n: 14, shape: "petal" }, // tulip
+    // the elm's spring drift is its pale samara/blossom, so it has a canopy to
+    // fall from; the red/yellow tulip colours live on in the (dead) window box
+    spring: { cols: ["#cfe0a8", "#b9cf8f", "#e6efc2"], rate: 9, wobble: 12, n: 14, shape: "petal" },  // elm blossom
     summer: { cols: ["#c8c39a", "#b0aa7c", "#e2ddb8"], rate: 8,  wobble: 18, n: 12, shape: "seed" },  // elm seeds
     autumn: { cols: ["#8f6b34", "#b08344", "#6f5228"], rate: 12, wobble: 15, n: 16, shape: "leaf" },  // leaves
     winter: null
@@ -432,10 +569,17 @@ const state = {
   seasonOverride: null   // harness-only: force a season for a capture
 };
 
-/* the season that city is actually in right now (local date + latitude) */
+/* the season that city is actually in right now (local date + latitude).
+   This is also the one place a season rollover is noticed: when state.season
+   changes the baked scene is rebuilt once (the tree gets its new crown), and
+   every later frame blits the cached layers.  Same one-off cost as a city
+   switch, at most four times a session. */
 function refreshSeason(){
   const c = cityRecord(state.city);
-  state.season = state.seasonOverride || seasonOf(localParts(c.tz).month, c.lat);
+  const next = state.seasonOverride || seasonOf(localParts(c.tz).month, c.lat);
+  const changed = next !== state.season;
+  state.season = next;
+  if(changed && scene && scene.id === state.city) buildScene(state.city);
   return state.season;
 }
 /* Some cities have a season in which snow simply cannot happen (Sydney in its
@@ -454,6 +598,10 @@ let buf = null, bctx = null;               // the framebuffer we draw into
 let frameCv = null, sillCv = null;         // window frame + sill dressing
 let stars = [], rain = [], snow = [], drift = [], clouds = [], birds = [];
 let scene = null;                          // current city's baked layers
+// bake bookkeeping: the harness asserts a season change rebuilds the scene
+// exactly once.  `scene` counts successful (non-cached) bakes, `hits` the
+// cached calls, `byCity` splits them per city.
+const bakeStats = { scene: 0, near: 0, hits: 0, byCity: {} };
 let skyCv = null, skyBucket = -999;
 let waterCv = null, waterCity = "";
 let yW = 181;                              // waterline in art pixels
@@ -834,26 +982,14 @@ BUILD.toronto = function(s){
   addWin(s, "mid", cx + 1, Y - 122, 1, 2, p.win, 1.4);
   addWin(s, "mid", cx + 2, Y - 125, 1, 1, p.win, 1.4);
 
-  // ---- near: island bank on the right, maples (the leaves fall from here)
+  // ---- near: island bank on the right; the maples on it are drawn by the
+  // tree system (city.tree) after the landmark art, with seasonal crowns
   const bankTop = H - 15;
   const bankX = Math.round(LW * 0.68);
   N(bankX, bankTop, LW - bankX + 12, 15, p.trunk);
   N(bankX, bankTop, LW - bankX + 12, 1, p.shore);
   N(bankX + 10, bankTop + 4, 40, 1, p.shoreHi);
   N(bankX + 62, bankTop + 5, 34, 1, p.shoreHi);
-  const maples = [[bankX + 34, 32, 11], [bankX + 84, 24, 9]];
-  for(let i = 0; i < maples.length; i++){
-    const tx = maples[i][0], th = maples[i][1], cr = maples[i][2];
-    const base = bankTop + 1;
-    for(let r = 0; r < th; r++) N(tx, base - r, 2, 1, p.trunk);
-    N(tx + 1, base - th + 2, 1, 3, p.trunk);
-    const cy = base - th - 2;
-    blob(s.near, tx + 1 - cr + 2, cy, cr, Math.round(cr * 0.8), p.mapleR, null);
-    blob(s.near, tx + 1, cy - 3, cr - 1, Math.round(cr * 0.72), p.maple, p.maple2);
-    blob(s.near, tx + 4, cy + 3, cr - 2, Math.round(cr * 0.6), p.maple2, null);
-    s.trees.push({ x: tx + 1 - PAD, y: cy, r: cr });
-    s.props.push({ g: "near", x: tx - cr + 3, w: cr * 2, h: Math.round(cr * 1.4), col: p.mapleR });
-  }
 };
 
 /* -------------------------------------------- Hawai'i: Diamond Head + palms */
@@ -1054,17 +1190,8 @@ BUILD.amsterdam = function(s){
     const r = row[i];
     gableHouse(s, s.mid, Math.round(s.cx + r[0]), Y, r[1], r[2], r[4], p.roof, p.trim, p.door, r[3]);
   }
-  // two elms in the gaps, trunks showing
-  for(let i = 0; i < 2; i++){
-    const tx = Math.round(s.cx + (i ? 42 : -70));
-    const th = 26 + Math.round(s.rnd() * 8);
-    for(let r = 0; r < th; r++){
-      M(tx, Y - r, 2, 1, p.roofLo);
-      if((r & 3) === 0) M(tx + (i ? 1 : 0), Y - r, 2, 1, p.leaf);
-    }
-    blob(s.mid, tx + 1, Y - th - 5, 10, 8, p.tree, p.leaf);
-    blob(s.mid, tx - 5, Y - th + 1, 6, 5, p.leaf, null);
-  }
+  // the two elms in the gable gaps are drawn by the tree system (city.tree)
+  // after this builder, so their crown follows the season
 
   // near: a low bridge across the far end of the canal, arches in shadow
   const by0 = Y + 3, bh = 9;
@@ -1245,23 +1372,8 @@ BUILD.sydney = function(s){
     if((x & 1) === 0) N(x, H - 3, 1, 3, p.sand);            // sand at the water
   }
   N(bankX - 36, H - 21, 3, 21, p.stoneLo);
-  // jacarandas sit on the quay in the near foreground (their petals drift across
-  // the whole frame in spring rather than only under the crowns)
-  const jacs = [[bankX + 18, 30], [bankX + 82, 24]];
-  for(let i = 0; i < jacs.length; i++){
-    const tx = jacs[i][0], th = jacs[i][1], baseY = H - bankH;
-    for(let r = 0; r < th; r++){
-      const bend = Math.round(Math.sin(r * 0.06 + i) * 1.5);
-      N(tx + bend, baseY - r, 2, 1, p.bark);
-      if((r & 3) === 0) N(tx + bend + 1, baseY - r, 1, 1, p.stoneLo);
-    }
-    const cy = baseY - th - 2;
-    blob(s.near, tx + 1, cy, 12, 8, p.jac, p.jacHi);
-    blob(s.near, tx - 6, cy + 4, 8, 5, p.jac, null);
-    blob(s.near, tx + 8, cy + 4, 8, 5, p.jacLo, null);
-    blob(s.near, tx - 8, cy + 7, 7, 4, p.grass, p.grassHi);
-    s.props.push({ g: "near", x: tx - PAD, w: 24, h: 12, col: p.jacLo });
-  }
+  // the jacarandas on the quay are drawn by the tree system (city.tree) after
+  // this builder, with a purple spring / green summer / thinned autumn crown
   // a beach umbrella and a towel on the quay: the summer corner of the season table
   const ux = bankX + 50, utop = H - bankH - 13;
   N(ux, utop, 1, 13, p.stoneLo);
@@ -1276,10 +1388,294 @@ BUILD.sydney = function(s){
 
 
 /* =========================================================================
+   The source trees.  One species per city is specified on the city record
+   (city.tree) and baked into the near or mid layer with four seasonal crowns;
+   the same bake returns the crown emitter points the drift layer falls from.
+   Silhouette first: a trunk and a crown mass have to read at 480x270, colour
+   comes second from PAL[city].tree[season].
+
+   The winter crown is bare branches.  Its settled-snow pass is baked into a
+   small sprite canvas (`scene.treeSnow`) so a live snowfall can fade it in
+   with one drawImage, without a re-bake when the weather changes.
+   ========================================================================= */
+const SEASON_ORDER = ["spring", "summer", "autumn", "winter"];
+const TREE_REF_W = 480;                // tree specs are authored at this buffer width
+
+function treeRnd(seed, season){
+  return mulberry32(seed * 131 + SEASON_ORDER.indexOf(season) * 977 + 7);
+}
+function unionBox(a, b){
+  if(!a) return b; if(!b) return a;
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+}
+
+/* a 1px line primitive: the only way to draw a branch, and cheap */
+function branchSeg(g, x0, y0, x1, y1, thick, col){
+  const steps = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+  for(let i = 0; i <= steps; i++){
+    const t = i / steps;
+    R(g, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, thick, 1, col);
+  }
+}
+
+/* one crown cluster: base colour, lit top-left, shaded foot, a few flecks —
+   enough shading to read as a canopy instead of a flat disc */
+function crownCluster(g, cx, cy, rx, ry, cols){
+  const spans = [];
+  for(let y = -ry; y <= ry; y++){
+    const t = y / (ry + 0.5);
+    const halfW = Math.round(rx * Math.sqrt(Math.max(0, 1 - t * t)));
+    if(halfW <= 0) continue;
+    spans.push([y, halfW]);
+    R(g, cx - halfW, cy + y, halfW * 2, 1, cols.c);
+  }
+  for(let i = 0; i < spans.length; i++){
+    const y = spans[i][0], halfW = spans[i][1];
+    if(y > -ry * 0.18) break;
+    if(halfW > 2) R(g, cx - halfW + 1, cy + y, Math.max(1, Math.round(halfW * 1.4)), 1, cols.hi);
+  }
+  for(let i = 0; i < spans.length; i++){
+    const y = spans[i][0], halfW = spans[i][1];
+    if(y < ry * 0.42) continue;
+    if(halfW > 1) R(g, cx - halfW + 1, cy + y, Math.max(1, halfW), 1, cols.lo);
+  }
+  for(let k = 0; k < 5; k++){                    // deterministic leaf flecks
+    const a = k * 2.399, rr = Math.sqrt((k + 0.5) / 5);
+    R(g, cx + Math.round(Math.cos(a) * rx * rr * 0.8),
+         cy + Math.round(Math.sin(a) * ry * rr * 0.8), 1, 1, (k & 1) ? cols.hi : cols.lo);
+  }
+}
+
+/* the crown's cluster layout, per silhouette.  Returns float boxes so the
+   caller can derive both the art and the emitter/crown bounds from one list.
+   `form` here is already scaled to the current buffer width.  Five clusters
+   stacked around a taller main lobe, so the mass reads round-ish instead of as
+   a flat mushroom. */
+function crownClusters(form, crown){
+  const rx = Math.max(4, (form.w || 24) * (crown.w == null ? 1 : crown.w) * 0.5);
+  const ry = Math.max(4, (form.h || 15) * (crown.h == null ? 1 : crown.h) * 0.5);
+  const shape = form.shape || "broad";
+  const list = [];
+  if(shape === "tall"){
+    list.push([0, ry * 0.20, rx * 0.80, ry * 0.95]);
+    list.push([-rx * 0.38, ry * 0.52, rx * 0.62, ry * 0.66]);
+    list.push([rx * 0.36, ry * 0.42, rx * 0.60, ry * 0.62]);
+    list.push([0, -ry * 0.55, rx * 0.72, ry * 0.78]);
+    list.push([-rx * 0.20, -ry * 0.05, rx * 0.55, ry * 0.55]);
+  } else if(shape === "shrub"){
+    list.push([0, ry * 0.10, rx * 0.95, ry * 0.90]);
+    list.push([-rx * 0.68, ry * 0.30, rx * 0.62, ry * 0.70]);
+    list.push([rx * 0.68, ry * 0.26, rx * 0.62, ry * 0.68]);
+    list.push([-rx * 0.20, -ry * 0.55, rx * 0.66, ry * 0.62]);
+    list.push([rx * 0.24, -ry * 0.50, rx * 0.60, ry * 0.60]);
+  } else {
+    list.push([0, ry * 0.12, rx * 0.85, ry * 0.92]);
+    list.push([-rx * 0.62, ry * 0.26, rx * 0.62, ry * 0.70]);
+    list.push([rx * 0.62, ry * 0.20, rx * 0.60, ry * 0.68]);
+    list.push([-rx * 0.30, -ry * 0.55, rx * 0.60, ry * 0.66]);
+    list.push([rx * 0.32, -ry * 0.58, rx * 0.58, ry * 0.62]);
+  }
+  return { list, rx, ry };
+}
+
+/* blossom / flower dots scattered inside the crown ellipse */
+function crownDots(g, cx, cy, rx, ry, dot, n, rnd){
+  for(let k = 0; k < n; k++){
+    const a = rnd() * 6.283, rr = Math.sqrt(rnd()) * 0.86;
+    const x = Math.round(cx + Math.cos(a) * rx * rr);
+    const y = Math.round(cy + Math.sin(a) * ry * rr);
+    R(g, x, y, rnd() < 0.35 ? 2 : 1, 1, dot);
+  }
+}
+
+/* one trunk (+ crown or bare limbs).  bx/baseY are buffer coords; the layer
+   canvases are PAD px wider, so drawing happens at bx + PAD. */
+function drawOneTree(s, g, bx, by, h, scale, form, crown, cols, treeCol, rnd){
+  const X = bx + PAD;
+  const lean = form.lean || 0;
+  const fw = (form.w || 24) * scale, fh = (form.h || 15) * scale;
+  const { list, rx, ry } = crownClusters({ shape: form.shape, w: fw, h: fh }, crown);
+  const lift = crown.lift == null ? 0.5 : crown.lift;
+  const cx = X, cy = by - h - Math.round(ry * lift);
+  const emitters = [], snowPts = [], tips = [];
+  let box, crownBox = null;
+
+  // root flare
+  R(g, X - 3, by - 2, 7, 2, treeCol.trunk);
+  R(g, X - 2, by - 4, 5, 2, treeCol.trunk);
+  R(g, X - 1, by - 6, 3, 2, treeCol.trunk);
+
+  if(form.shape === "shrub"){
+    // a shrub is multi-stemmed: three stems fan out of the same root
+    branchSeg(g, X, by - 2, X - Math.round(rx * 0.55), cy + Math.round(ry * 0.42), 1, treeCol.trunk);
+    branchSeg(g, X, by - 2, X + Math.round(rx * 0.55), cy + Math.round(ry * 0.36), 1, treeCol.trunk);
+    branchSeg(g, X, by - 2, X + Math.round(lean), cy + Math.round(ry * 0.10), 2, treeCol.trunk);
+  } else {
+    // trunk: 3px at the foot tapering to 1px at the fork, lit right arris
+    for(let r = 0; r <= h; r++){
+      const t = r / Math.max(1, h);
+      const dx = Math.round(lean * t * t);
+      const w = t < 0.48 ? 3 : t < 0.84 ? 2 : 1;
+      R(g, X + dx, by - r, w, 1, treeCol.trunk);
+      if(w > 1) R(g, X + dx + w - 1, by - r, 1, 1, treeCol.branch);
+    }
+  }
+  const forkX = X + Math.round(lean), forkY = by - h;
+
+  if(crown.bare){
+    // ---- bare winter: five main limbs, each forking three times into 1px twigs
+    const bry = Math.max(10, Math.round(fh * 1.55));
+    let minX = X - 3, maxX = X + 3, minY = forkY;
+    const grow = (x0, y0, ang, len, thick, depth) => {
+      const x1 = x0 + Math.cos(ang) * len;
+      const y1 = y0 - Math.sin(ang) * len;
+      branchSeg(g, x0, y0, x1, y1, thick, depth > 0 ? treeCol.branch : treeCol.trunk);
+      minX = Math.min(minX, x1); maxX = Math.max(maxX, x1); minY = Math.min(minY, y1);
+      snowPts.push([x1, y1]);
+      if(depth <= 0){ tips.push([x1, y1]); return; }
+      grow(x1, y1, ang + 0.38 + rnd() * 0.24, len * 0.62, 1, depth - 1);
+      grow(x1, y1, ang - 0.36 - rnd() * 0.24, len * 0.62, 1, depth - 1);
+    };
+    for(let i = 0; i < 5; i++){
+      const ang = Math.PI / 2 + (i - 2) * 0.44 + (rnd() - 0.5) * 0.16;
+      grow(forkX, forkY + 1, ang, bry * (i === 2 ? 0.52 : 0.44), i === 2 ? 2 : 1, 3);
+    }
+    // a bare-ish species may keep a couple of tufts (Sydney's jacaranda)
+    if(crown.tuft){
+      for(let k = 0; k < crown.tuft && tips.length; k++){
+        const tp = tips[(k * 7 + 1) % tips.length];
+        R(g, tp[0] - 1, tp[1] - 1, 3, 2, cols.c);
+        R(g, tp[0] - 1, tp[1] - 1, 2, 1, cols.hi);
+      }
+    }
+    // 2-3 branch tips are the winter emitters (unused today: every winter
+    // drift spec is null, but the tree stays a legal source)
+    const sorted = tips.slice().sort((a, b) => a[0] - b[0]);
+    const picks = sorted.length > 2 ? [sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]] : sorted;
+    for(let i = 0; i < picks.length; i++)
+      emitters.push({ x: Math.round(picks[i][0] - PAD), y: Math.round(picks[i][1]), spread: 2 });
+    box = { x: Math.round(minX - PAD) - 2, y: Math.round(minY) - 2,
+            w: Math.round(maxX - minX) + 5, h: Math.round(by - minY) + 4 };
+    crownBox = box;
+  } else {
+    // ---- crowned seasons: a cluster mass sitting on the fork
+    if(form.shape !== "shrub"){
+      // two limbs up into the crown, and two lower side limbs whose tips peek
+      // out below the skirt (a tree, not a lollipop)
+      branchSeg(g, forkX, forkY, cx - rx * 0.30, cy + ry * 0.55, 2, treeCol.branch);
+      branchSeg(g, forkX, forkY, cx + rx * 0.28, cy + ry * 0.50, 2, treeCol.branch);
+      branchSeg(g, forkX, forkY + 1, cx - rx * 1.02, cy + ry * 1.00, 1, treeCol.trunk);
+      branchSeg(g, forkX, forkY + 1, cx + rx * 1.00, cy + ry * 0.94, 1, treeCol.trunk);
+      branchSeg(g, forkX, forkY + 1, cx - rx * 0.55, cy + ry * 1.10, 1, treeCol.trunk);
+    }
+    let minX = X - 4, maxX = X + 4, minY = cy;
+    // the two side lobes are painted in a half-shade so the mass has internal
+    // edges without reading as separate grapes
+    const sideCols = { c: mixCol(cols.c, cols.lo, 0.45), hi: cols.c, lo: cols.lo, dot: cols.dot };
+    for(let i = 0; i < list.length; i++){
+      const k = list[i];
+      const bxc = cx + k[0], byc = cy + k[1];
+      crownCluster(g, bxc, byc, k[2], k[3], (i === 1 || i === 2) ? sideCols : cols);
+      minX = Math.min(minX, bxc - k[2]); maxX = Math.max(maxX, bxc + k[2]);
+      minY = Math.min(minY, byc - k[3]);
+    }
+    // a few leaf clumps outside the ellipse so the silhouette is not a disc
+    for(let k = 0; k < 9; k++){
+      const a = k * 0.79 + rnd() * 0.5;
+      const rr = 0.92 + rnd() * 0.18;
+      const bx2 = cx + Math.cos(a) * rx * rr, by2 = cy + Math.sin(a) * ry * rr;
+      R(g, bx2, by2, 1 + (k & 1), 1, (k & 1) ? cols.c : cols.lo);
+      minX = Math.min(minX, bx2 - 1); maxX = Math.max(maxX, bx2 + 1);
+      minY = Math.min(minY, by2); 
+    }
+    // sky holes: punch a few gaps so autumn reads as thinned-out
+    if(crown.gap){
+      const n = Math.round(4 + crown.gap * 12);
+      for(let k = 0; k < n; k++){
+        const gx = Math.round(cx + (rnd() * 2 - 1) * rx * 0.92);
+        const gy = Math.round(cy + (rnd() * 2 - 1) * ry * 0.80);
+        g.clearRect(gx, gy, 1 + Math.round(rnd() * 2), 1 + Math.round(rnd()));
+      }
+    }
+    if(crown.dots && cols.dot) crownDots(g, cx, cy, rx * 0.96, ry * 0.94, cols.dot, crown.dots, rnd);
+    // emitters: three points inside the crown mass (2-3 per tree as specified)
+    const sp = Math.max(4, Math.round(rx * 0.50));
+    emitters.push({ x: bx, y: Math.round(cy - ry * 0.45), spread: sp });
+    emitters.push({ x: bx - Math.round(rx * 0.60), y: Math.round(cy + ry * 0.18), spread: sp });
+    emitters.push({ x: bx + Math.round(rx * 0.56), y: Math.round(cy + ry * 0.12), spread: sp });
+    box = { x: Math.round(minX - PAD) - 2, y: Math.round(minY) - 3,
+            w: Math.round(maxX - minX) + 5, h: Math.round(by - minY) + 5 };
+    crownBox = { x: Math.round(cx - rx * 1.45 - PAD), y: Math.round(cy - ry * 1.45),
+                 w: Math.round(rx * 2.9), h: Math.round(ry * 2.9) };
+  }
+  return { box, crownBox, emitters, snowPts };
+}
+
+/* draw every trunk of the city's tree species for one season */
+function buildTree(s, season){
+  const spec = s.city.tree;
+  const info = { kind: spec ? spec.kind : null, layer: spec ? spec.layer : null,
+                 season, drawn: false, bare: false, trunks: [], emitters: [], box: null, crownBox: null };
+  s.treeInfo = info;
+  s.treeEmitters = [];
+  s.treeSnow = null;
+  if(!spec) return info;
+  const scale = s.BW / TREE_REF_W;
+  const xs = Array.isArray(spec.x) ? spec.x : [spec.x];
+  const hs = Array.isArray(spec.h) ? spec.h : [spec.h];
+  const crown = spec.crowns[season] || spec.crowns.summer;
+  const treeCol = s.pal.tree || { trunk: "#3b2a20", branch: "#5b4534", snow: "#e9f1f2" };
+  const cols = treeCol[season] || treeCol.summer || treeCol.spring;
+  const g = spec.layer === "mid" ? s.mid : s.near;
+  const rnd = treeRnd(s.city.seed, season);
+  const snowPts = [];
+  const boxes = [], crownBoxes = [];
+  for(let i = 0; i < xs.length; i++){
+    const bx = Math.round(xs[i] * s.BW);
+    const by = Math.round(spec.baseY * s.BH);
+    const h = Math.round((hs[i] == null ? hs[0] : hs[i]) * scale);
+    const one = drawOneTree(s, g, bx, by, h, scale, spec.form || {}, crown, cols, treeCol, rnd);
+    boxes.push(one.box);
+    if(one.crownBox) crownBoxes.push(one.crownBox);
+    info.trunks.push({ x: bx, baseY: by, h, box: one.box });
+    for(let k = 0; k < one.emitters.length; k++) info.emitters.push(one.emitters[k]);
+    for(let k = 0; k < one.snowPts.length; k++) snowPts.push(one.snowPts[k]);
+    // a tree standing at the waterline gets a reflection in the water pass
+    if(spec.baseY <= 0.70 && one.box)
+      s.props.push({ g: spec.layer, x: one.box.x + PAD, w: one.box.w,
+                     h: Math.min(30, Math.round(one.box.h * 0.45)), col: cols.lo });
+  }
+  let ub = null, cb = null;
+  for(let i = 0; i < boxes.length; i++) ub = unionBox(ub, boxes[i]);
+  for(let i = 0; i < crownBoxes.length; i++) cb = unionBox(cb, crownBoxes[i]);
+  info.box = ub;
+  info.crownBox = cb || ub;
+  info.bare = !!crown.bare;
+  info.drawn = info.trunks.length > 0;
+  info.emitters = info.emitters.slice();
+  s.treeEmitters = info.emitters.slice();
+
+  // baked settled snow for the bare crown, kept as its own small sprite
+  if(crown.bare && snowPts.length && ub){
+    const sn = makeCanvas(Math.max(4, Math.round(ub.w)), Math.max(4, Math.round(ub.h)));
+    const sg = ctx2(sn);
+    for(let i = 0; i < snowPts.length; i++){
+      if(i % 3) continue;                 // a hint of snow, not blossom
+      R(sg, snowPts[i][0] - (ub.x + PAD), snowPts[i][1] - ub.y,
+        1 + ((i % 6) === 0 ? 1 : 0), 1, treeCol.snow);
+    }
+    s.treeSnow = { cv: sn, x: ub.x, y: ub.y, layer: spec.layer };
+  }
+  return info;
+}
+
+/* =========================================================================
    The garden: the one thing every city shares.  A little island in the
    near-left corner with a three-tier pagoda, two trees, a stone lantern and a
    path.  It is painted into the near layer at a fixed screen position, so it
-   reads as the anchor and the city stays the backdrop.
+   reads as the anchor and the city stays the backdrop.  It is deliberately
+   season-blind: the pagoda island is the constant, the city tree is the season.
    ========================================================================= */
 const GARDEN = {
   wall: "#efe7d2", wallShade: "#b9ad94", roof: "#8e3328", roofDark: "#5d2119",
@@ -1376,14 +1772,24 @@ function buildGarden(s){
   R(g, px0 + 11, topY - 51, 4, 1, GARDEN.roofDark);
 }
 /* ------------------------------------------------------------ assemble one */
-function buildScene(id){
+/* Baked once per (city, season, buffer size) and cached: the only things that
+   are season-dependent are the tree crowns (near/mid layers) and the drift
+   colours (a per-frame table lookup), so a season rollover is exactly one
+   rebuild — the same cost as switching city. */
+function buildScene(id, season){
   const city = cityRecord(id);
+  const sea = season || state.season;
+  if(scene && scene.id === city.id && scene.season === sea && scene.BW === BW && scene.BH === BH){
+    bakeStats.hits++;
+    return scene;
+  }
   const rnd = mulberry32(city.seed);
   const LW = BW + PAD * 2;
   const farC = makeCanvas(LW, BH), midC = makeCanvas(LW, BH), nearC = makeCanvas(LW, BH);
   const pal = city.palette;
   const s = {
     id: city.id, city, pal, rnd, LW, BH, BW, PAD,
+    season: sea,                                  // which crown this bake holds
     wcol: {
       hi: pal.waterHi || pal.canalHi || pal.lagoonHi,
       mid: pal.water || pal.canal || pal.lagoon,
@@ -1392,11 +1798,17 @@ function buildScene(id){
     yW, cx: PAD + BW / 2,
     farC, midC, nearC,
     far: ctx2(farC), mid: ctx2(midC), near: ctx2(nearC),
-    windows: [], props: [], lights: [], trees: [], extra: {}
+    windows: [], props: [], lights: [], extra: {},
+    treeInfo: null, treeEmitters: [], treeSnow: null
   };
   (BUILD[city.landmark] || BUILD.vancouver)(s);
-  buildGarden(s);
+  buildTree(s, sea);            // the seasonal source tree, on top of the landmark
+  buildGarden(s);               // the constant island, drawn last so it anchors
   scene = s;
+  bakeStats.scene++;
+  bakeStats.near++;
+  bakeStats.byCity[city.id] = (bakeStats.byCity[city.id] || 0) + 1;
+  seedDrift(s.treeEmitters);    // put the pool under the new crown, not mid-air
   return s;
 }
 
@@ -1678,10 +2090,13 @@ function buildParticles(){
                 r: rnd() < 0.35 ? 2 : 1, sw: 14 + rnd() * 16, ph: rnd() * 6.283 });
   }
   // one shared pool; DRIFT decides how many of these are in the air and how
-  // they move, so switching city or season costs nothing and never leaks state
+  // they move, so switching city or season costs nothing and never leaks state.
+  // Each particle remembers the tree emitter that released it (`ex/ey`) plus a
+  // small lateral offset (`ox`), so a respawn always comes out of a crown.
   for(let i = 0; i < 28; i++){
     drift.push({ x: rnd() * BW, y: rnd() * BH, sp: 0.55 + rnd() * 0.9,
-                 ph: rnd() * 6.283, c: i % 3 });
+                 ph: rnd() * 6.283, c: i % 3,
+                 amb: false, ex: 0, ey: 0, ox: 0, j: 0 });
   }
   buildRipples();
 }
@@ -1988,8 +2403,9 @@ function drawLights(now, m, offs){
    One renderer for every falling thing: petals, leaves, seeds, needles, motes.
    The DRIFT table supplies the sprite, the speed and the count; the pool is
    shared, so a city/season change just swaps what those particles look like.
-   Heavy rain or snow winds the drift down to nothing — it must never fight the
-   weather it is meant to sit on top of. */
+   Every particle is released from a crown emitter of the baked tree (or, for
+   the few ambient specs, from the top of the frame); heavy rain or snow winds
+   the layer down to nothing — it must never fight the weather it sits on. */
 function currentDrift(){
   return driftFor(scene ? scene.id : state.city, state.season);
 }
@@ -1997,24 +2413,56 @@ function driftAmount(){
   if(!currentDrift()) return 0;
   return clamp(1 - state.rainAmt * 2.4 - state.snowAmt * 5, 0, 1);
 }
+
+/* Put the shared pool under the tree this bake painted.  Each particle takes a
+   slice of one emitter's line of fall; the seeded phase decides where along it
+   it starts, so a fresh city/season opens with a believable column rather than
+   a burst at the crown.  `ambient` is the optional top-of-frame trickle. */
+function seedDrift(emitters){
+  const spec = currentDrift();
+  const ems = (emitters && emitters.length) ? emitters : [];
+  const n = spec ? Math.min(spec.n, drift.length) : 0;
+  const nAmb = spec ? Math.round(clamp(spec.ambient || 0, 0, 1) * n) : 0;
+  for(let i = 0; i < drift.length; i++){
+    const l = drift[i];
+    l.j = 0;
+    if(!spec){ l.amb = true; continue; }      // a season with no drift: pool idle
+    const ambient = nAmb > 0 && i >= n - nAmb;
+    l.amb = ambient || !ems.length;
+    if(l.amb){
+      l.ex = Math.round((l.ph / 6.283) * BW);
+      l.ey = -4; l.ox = 0;
+      l.x = l.ex;
+      l.y = Math.round((l.ph / 6.283) * BH);
+    } else {
+      const e = ems[i % ems.length];
+      l.ex = e.x; l.ey = e.y;
+      l.ox = Math.round(((l.ph / 6.283) * 2 - 1) * (e.spread || 3));
+      l.y = l.ey + Math.round((l.ph / 6.283) * Math.max(2, BH - l.ey) * 0.9);
+      // place it where the live motion would already have carried it: the same
+      // wind+wobble equation integrated over the fall time, so a fresh bake
+      // opens as a wind-blown fan under the crown instead of a vertical thread
+      const speed = Math.max(1, spec.rate * (0.7 + l.sp * 0.55));
+      const tt = (l.y - l.ey) / speed;
+      const f = 0.55 + l.sp * 0.5;
+      const sway = (spec.wobble / 0.5) * (Math.cos(l.ph) - Math.cos(0.5 * tt + l.ph));
+      l.x = clamp(l.ex + l.ox + Math.round(f * (2 * tt + sway)), -4, BW + 4);
+    }
+  }
+}
+
 function drawDrift(now, m){
   const spec = currentDrift();
   const a0 = driftAmount();
   if(!spec || a0 < 0.02) return;
   const b = bctx;
   const cols = spec.cols;
-  const trees = (spec.tree && scene.trees.length) ? scene.trees : null;
   const night = 0.55 + 0.45 * (1 - m.night);
   const shape = spec.shape || "leaf";
   for(let i = 0; i < spec.n && i < drift.length; i++){
     const l = drift[i];
-    let x = l.x, y = l.y;
-    if(trees){                                  // fall from a baked tree crown
-      const tr = trees[i % trees.length];
-      const span = Math.max(20, BH - (tr.y - 12));
-      x = tr.x + (l.x / BW - 0.5) * (tr.r * 2 + 26);
-      y = (tr.y - 12) + (l.y % span);
-    }
+    const x = Math.round(l.x), y = Math.round(l.y);
+    if(y < -4 || y > BH + 4 || x < -6 || x > BW + 6) continue;
     const c0 = cols[l.c % cols.length], c1 = cols[(l.c + 1) % cols.length];
     b.globalAlpha = a0 * night;
     if(shape === "leaf"){
@@ -2114,6 +2562,10 @@ function offsets(now){
 
 /* -------------------------------------------------------------------- frame */
 function drawFrame(now, dt){
+  // the season can roll over from the info-card interval; the guard means the
+  // layers are rebuilt exactly once and every other frame is a pure blit
+  if(!scene || scene.id !== state.city || scene.season !== state.season ||
+     scene.BW !== BW || scene.BH !== BH) buildScene(state.city);
   const m = moodAt(state.hour);
   const b = bctx;
   b.globalCompositeOperation = "source-over";
@@ -2137,6 +2589,14 @@ function drawFrame(now, dt){
 
   grade(m);
   drawLights(now, m, offs);
+  // settled snow on a bare crown: baked once with the winter tree, faded in by
+  // the live snow amount, so weather never triggers a re-bake
+  if(scene.treeSnow && state.snowAmt > 0.01){
+    const sn = scene.treeSnow;
+    b.globalAlpha = clamp(state.snowAmt * 0.8, 0, 1);
+    b.drawImage(sn.cv, sn.x + (sn.layer === "mid" ? offs.mid : offs.near), sn.y);
+    b.globalAlpha = 1;
+  }
   drawWeather(now, m);
   b.drawImage(frameCv, 0, 0);
 
@@ -2450,9 +2910,18 @@ function updateWeather(dt){
       const l = drift[i];
       const speed = spec.rate * (0.7 + l.sp * 0.55);
       l.y += speed * dt;
-      l.x += (Math.sin(t * 0.5 + l.ph) * spec.wobble + 5) * (0.55 + l.sp * 0.5) * dt;
-      if(l.y > BH){ l.y = -4; l.x = Math.random() * BW; }
-      if(l.x > BW + 4) l.x = -4;
+      l.x += (Math.sin(t * 0.5 + l.ph) * spec.wobble + 2) * (0.55 + l.sp * 0.5) * dt;
+      if(l.amb){
+        // the ambient trickle enters across the top and never claims a crown
+        if(l.y > BH){ l.y = -4; l.x = Math.round((l.ph / 6.283) * BW); }
+        if(l.x > BW + 4) l.x = -4;
+      } else if(l.y > BH || l.x > BW + 6){
+        // released again from the same crown emitter: the drift keeps a source
+        l.j = (l.j + 1) & 3;
+        l.y = l.ey - 2;
+        l.x = l.ex + l.ox + ((l.j & 1) ? 2 : -2);
+        l.ph += 0.9;
+      }
     }
   }
 }
@@ -2624,7 +3093,7 @@ const PIXEL = {
     if(opts.snow !== undefined){ state.snowAmt = state.snowTarget = opts.snow; }
     if(!snowAllowed()){ state.snowAmt = state.snowTarget = 0; }   // e.g. Sydney summer
     if(opts.cloud !== undefined) state.cloudAmt = opts.cloud;
-    buildScene(state.city);
+    buildScene(state.city);          // cached unless city/season/size changed
     buildSill(state.city);
     waterCv = null;
     paintWater();
@@ -2644,7 +3113,20 @@ const PIXEL = {
     const c = cityRecord(id);
     return seasonOf(month === undefined ? localParts(c.tz).month : month, c.lat);
   },
-  drift(id, season){ return driftFor(id, season); }
+  drift(id, season){ return driftFor(id, season); },
+  /* ---- season + tree + bake inspection (all read-only, for the harness) ---- */
+  setSeason(season){                    // force a season and repaint once
+    state.seasonOverride = season || null;
+    return refreshSeason();
+  },
+  sceneSeason(){ return scene ? scene.season : null; },
+  view(){ return { bw: BW, bh: BH, px, bx, by, pad: PAD }; },
+  layers(){ return scene ? { far: scene.farC, mid: scene.midC, near: scene.nearC } : null; },
+  treeInfo(){ return scene ? scene.treeInfo : null; },
+  treeEmitters(){ return scene ? scene.treeEmitters.slice() : []; },
+  bakes(){ return { scene: bakeStats.scene, near: bakeStats.near, hits: bakeStats.hits, byCity: Object.assign({}, bakeStats.byCity) }; },
+  driftParticles(){ return drift.slice(0, 28); },
+  driftSource(){ return scene ? scene.treeInfo : null; }
 };
 if(typeof globalThis !== "undefined") globalThis.PIXEL = PIXEL;
 
