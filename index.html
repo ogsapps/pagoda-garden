@@ -43,7 +43,7 @@
 </head>
 <body>
 <canvas id="scene"></canvas>
-<div id="hint">drag to look around &middot; enable sound for ambience</div>
+<div id="hint">drag to look &middot; scroll to zoom &middot; enable sound for ambience</div>
 
 <div id="ui">
   <div class="grp">
@@ -58,6 +58,10 @@
     <button data-wx="snow" aria-pressed="false">snow</button>
   </div>
   <div class="grp">
+    <button id="zout" aria-label="Zoom out" title="Zoom out (scroll)">&minus;</button>
+    <button id="zin" aria-label="Zoom in" title="Zoom in (scroll)">+</button>
+  </div>
+  <div class="grp">
     <button id="snd" aria-pressed="false">sound</button>
     <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6" aria-label="Volume">
   </div>
@@ -68,21 +72,42 @@
 
 /* ------------------------------------------------------------------ canvas */
 const cv = document.getElementById("scene");
-const ctx = cv.getContext("2d");
+const ctx = cv.getContext("2d", { alpha: false });
 let W = 0, H = 0, DPR = 1, vignette = null;
 
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isFirefox = /firefox/i.test(navigator.userAgent);
+
+// The expensive part of a frame is the ~830 voxel faces. They only change when the
+// camera, the clock or the weather does, so they are painted into an offscreen layer
+// and the animation loop just blits it and draws the moving bits on top.
+const layer = document.createElement("canvas");
+let lctx = layer.getContext("2d", { alpha: false });
+let vignetteCv = null;
+let cacheState = null;
 
 function resize(){
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  // Firefox's 2-D path filling is slower than Chromium's, so give it, and everyone
+  // at high DPI, a slightly smaller backing store instead of 2x pixels.
+  DPR = Math.min(window.devicePixelRatio || 1, isFirefox ? 1.25 : 1.5);
   W = cv.width  = Math.max(1, Math.floor(innerWidth  * DPR));
   H = cv.height = Math.max(1, Math.floor(innerHeight * DPR));
   cv.style.width  = innerWidth  + "px";
   cv.style.height = innerHeight + "px";
-  vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.22,
-                                      W / 2, H / 2, Math.max(W, H) * 0.75);
-  vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(5,9,13,0.45)");
+  layer.width = W; layer.height = H;
+  lctx = layer.getContext("2d", { alpha: false });
+
+  vignetteCv = document.createElement("canvas");
+  vignetteCv.width = W; vignetteCv.height = H;
+  const vg = vignetteCv.getContext("2d");
+  const vgrad = vg.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.22,
+                                        W / 2, H / 2, Math.max(W, H) * 0.75);
+  vgrad.addColorStop(0, "rgba(0,0,0,0)");
+  vgrad.addColorStop(1, "rgba(5,9,13,0.45)");
+  vg.fillStyle = vgrad;
+  vg.fillRect(0, 0, W, H);
+
+  cacheState = null;
   seedParticles();
 }
 addEventListener("resize", resize);
@@ -231,6 +256,8 @@ const byFaceDepth = (a, b) => faceDepth[a] - faceDepth[b];
 
 /* ------------------------------------------------------------------ camera */
 let yaw = 3.86, pitch = 0.52;
+let zoom = 1, zoomTarget = 1;
+const ZOOM_MIN = 0.55, ZOOM_MAX = 2.6;
 let dragging = false, lx = 0, ly = 0, vel = 0, lastTouch = 0;
 const cam = { ca: 1, sa: 0, cp: 1, sp: 0, ssp: 0, csp: 0, s: 1, ox: 0, oy: 0 };
 
@@ -318,24 +345,44 @@ const LAMPS = [
   [9.4, 0.9, 8.0, 0.55]
 ];
 
-function glow(x, y, r, col, a){
+// soft light blobs are pre-rendered once per colour and blitted, which is far
+// cheaper than building a radial gradient every frame (the Firefox case)
+const glowSprites = new Map();
+function glowSprite(col){
+  const key = col.join(",");
+  let c = glowSprites.get(key);
+  if(c) return c;
+  const S = 96;
+  c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  const rg = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  rg.addColorStop(0, "rgba(" + key + ",1)");
+  rg.addColorStop(0.40, "rgba(" + key + ",0.32)");
+  rg.addColorStop(1, "rgba(" + key + ",0)");
+  g.fillStyle = rg;
+  g.fillRect(0, 0, S, S);
+  glowSprites.set(key, c);
+  return c;
+}
+function glow(g, x, y, r, col, a){
   if(a <= 0.004 || r <= 0.5) return;
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, "rgba(" + col[0] + "," + col[1] + "," + col[2] + "," + a + ")");
-  g.addColorStop(1, "rgba(" + col[0] + "," + col[1] + "," + col[2] + ",0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = Math.min(1, a);
+  g.drawImage(glowSprite(col), x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = 1;
 }
 
 /* ------------------------------------------------------------------ render */
-function render(now, dt){
+// the expensive static half of a frame: sky, voxels, grades, stars, sun/moon, lanterns
+function drawSceneLayer(now){
+  const ctx = lctx;
   const m = moodAt(hour);
 
   const ca = Math.cos(yaw), sa = Math.sin(yaw);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const scp = sa * cp, ccp = ca * cp;
   const ssp = sa * sp, csp = ca * sp;
-  const s = Math.min(W, H) / 27, ox = W / 2, oy = H / 2;
+  const s = Math.min(W, H) / 27 * zoom, ox = W / 2, oy = H / 2;
   cam.ca = ca; cam.sa = sa; cam.cp = cp; cam.sp = sp;
   cam.ssp = ssp; cam.csp = csp; cam.s = s; cam.ox = ox; cam.oy = oy;
 
@@ -448,36 +495,66 @@ function render(now, dt){
     const sx = (0.06 + ((hour - 6) / 12) * 0.88) * W;
     const sy = H * (0.66 - elev * 0.46);
     const warm = clamp(1 - Math.abs(hour - 12) / 7, 0, 1);
-    glow(sx, sy, glowR * 0.8, [255, 232, 178], 0.09 + 0.13 * warm);
-    glow(sx, sy, Math.min(W, H) * 0.045, [255, 250, 232], 0.40);
+    glow(ctx, sx, sy, glowR * 0.8, [255, 232, 178], 0.09 + 0.13 * warm);
+    glow(ctx, sx, sy, Math.min(W, H) * 0.045, [255, 250, 232], 0.40);
   } else {
     const nightFrac = ((hour - 18 + 24) % 24) / 12;          // 0 at 18h, 1 at 6h
     const me = Math.sin(clamp(nightFrac, 0, 1) * Math.PI);
     if(me > 0.02){
       const sx = (0.06 + clamp(nightFrac, 0, 1) * 0.88) * W;
       const sy = H * (0.66 - me * 0.46);
-      glow(sx, sy, glowR * 0.7, [180, 200, 235], 0.10 + 0.14 * me);
-      glow(sx, sy, Math.min(W, H) * 0.030, [235, 242, 255], 0.42 * me);
+      glow(ctx, sx, sy, glowR * 0.7, [180, 200, 235], 0.10 + 0.14 * me);
+      glow(ctx, sx, sy, Math.min(W, H) * 0.030, [235, 242, 255], 0.42 * me);
     }
   }
 
-  // lanterns and fireflies
+  // lanterns
   const nightA = m.night;
   if(nightA > 0.10){
     for(let i = 0; i < LAMPS.length; i++){
       const L2 = LAMPS[i];
       const p = project(L2[0], L2[1], L2[2]);
-      glow(p[0], p[1], s * 2.3 * L2[3], [255, 190, 112], 0.20 * nightA * L2[3]);
+      glow(ctx, p[0], p[1], s * 2.3 * L2[3], [255, 190, 112], 0.20 * nightA * L2[3]);
     }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function render(now, dt, active){
+  const m = moodAt(hour);
+  const s = Math.min(W, H) / 27 * zoom;
+
+  // rebuild the voxel layer only when something it depends on moved
+  const moved = !cacheState || W !== cacheState.w || H !== cacheState.h ||
+    Math.abs(yaw - cacheState.yaw) > 0.0006 || Math.abs(pitch - cacheState.pitch) > 0.0006 ||
+    Math.abs(zoom - cacheState.zoom) > 0.002 || Math.abs(hour - cacheState.hour) > 0.02 ||
+    Math.abs(rainAmt - cacheState.rain) > 0.02 || Math.abs(snowAmt - cacheState.snow) > 0.02;
+  if(moved){
+    drawSceneLayer(now);
+    cacheState = { yaw, pitch, zoom, hour, rain: rainAmt, snow: snowAmt, w: W, h: H };
+  }
+
+  // nothing on screen is moving (no weather, no fireflies, no zoom easing): keep the
+  // last frame instead of blitting two full-screen images sixty times a second
+  if(!moved && !active) return;
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(layer, 0, 0);
+
+  // fireflies drift, so they stay out of the cached layer
+  const nightA = m.night;
+  if(nightA > 0.10){
+    ctx.globalCompositeOperation = "lighter";
     for(let i = 0; i < flies.length; i++){
       const f = flies[i];
       const fx = (f.x + Math.sin(now * 0.00021 * f.sp + f.ph) * 0.045) * W;
       const fy = (f.y + Math.cos(now * 0.00017 * f.sp + f.ph * 1.7) * 0.03) * H;
       const a = nightA * (0.16 + 0.20 * Math.sin(now * 0.0013 * f.sp + f.ph));
-      glow(fx, fy, s * 0.34, [255, 226, 150], a);
+      glow(ctx, fx, fy, s * 0.34, [255, 226, 150], a);
     }
+    ctx.globalCompositeOperation = "source-over";
   }
-  ctx.globalCompositeOperation = "source-over";
 
   // weather particles
   if(rainAmt > 0.01){
@@ -496,16 +573,18 @@ function render(now, dt){
   }
   if(snowAmt > 0.01){
     ctx.fillStyle = "rgba(255,255,255," + (0.72 * snowAmt).toFixed(3) + ")";
+    ctx.beginPath();
     for(let i = 0; i < snow.length; i++){
       const f = snow[i];
-      ctx.beginPath();
-      ctx.arc(f.x * W, f.y * H, f.r * DPR, 0, 6.2832);
-      ctx.fill();
+      const x = f.x * W, y = f.y * H, r = f.r * DPR;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
     }
+    ctx.fill();
   }
 
   // vignette
-  if(vignette){ ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H); }
+  if(vignetteCv) ctx.drawImage(vignetteCv, 0, 0);
 }
 
 /* ------------------------------------------------------------------ update */
@@ -650,6 +729,8 @@ const cycleBtn = document.getElementById("cycle");
 const sndBtn = document.getElementById("snd");
 const volInput = document.getElementById("vol");
 const hint = document.getElementById("hint");
+const zinBtn = document.getElementById("zin");
+const zoutBtn = document.getElementById("zout");
 const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
 
 function updateClock(){
@@ -710,11 +791,20 @@ volInput.addEventListener("input", () => {
   savePrefs();
 });
 
+function nudgeZoom(factor){
+  zoomTarget = clamp(zoomTarget * factor, ZOOM_MIN, ZOOM_MAX);
+  savePrefsSoon();
+}
+zinBtn.addEventListener("click", () => nudgeZoom(1.18));
+zoutBtn.addEventListener("click", () => nudgeZoom(1 / 1.18));
+
 /* remember the last look so the page opens the way it was left */
 const PREF_KEY = "pagoda-garden.v1";
 let currentWx = "clear";
+let prefTimer = 0;
+function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 600); }
 function savePrefs(){
-  try { localStorage.setItem(PREF_KEY, JSON.stringify({ hour, cycleOn, wx: currentWx, vol })); } catch(e){}
+  try { localStorage.setItem(PREF_KEY, JSON.stringify({ hour, cycleOn, wx: currentWx, vol, zoom: +zoomTarget.toFixed(3) })); } catch(e){}
 }
 function loadPrefs(){
   let p = null;
@@ -723,6 +813,7 @@ function loadPrefs(){
   if(Number.isFinite(p.hour)) hour = p.hour;
   if(typeof p.cycleOn === "boolean") cycleOn = p.cycleOn;
   if(typeof p.vol === "number"){ vol = p.vol; volInput.value = String(vol); }
+  if(Number.isFinite(p.zoom)){ zoom = zoomTarget = clamp(p.zoom, ZOOM_MIN, ZOOM_MAX); }
   hourInput.value = hour.toFixed(2);
   cycleBtn.setAttribute("aria-pressed", String(cycleOn));
   updateClock();
@@ -732,14 +823,35 @@ loadPrefs();
 setTimeout(() => { hint.style.opacity = "0"; }, 14000);
 
 /* -------------------------------------------------------------------- loop */
+const pointers = new Map();
+let pinchStart = 0, pinchZoom = 1;
+
+function pinchDistance(){
+  const p = Array.from(pointers.values());
+  return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 0;
+}
+
 cv.addEventListener("pointerdown", e => {
-  dragging = true; lx = e.clientX; ly = e.clientY; vel = 0;
-  lastTouch = performance.now();
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   cv.setPointerCapture(e.pointerId);
-  cv.style.cursor = "grabbing";
+  lastTouch = performance.now();
   hint.style.opacity = "0";
+  if(pointers.size === 2){
+    pinchStart = pinchDistance();
+    pinchZoom = zoomTarget;
+    dragging = false;
+    return;
+  }
+  dragging = true; lx = e.clientX; ly = e.clientY; vel = 0;
+  cv.style.cursor = "grabbing";
 });
 cv.addEventListener("pointermove", e => {
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if(pointers.size >= 2){
+    if(pinchStart > 0) zoomTarget = clamp(pinchZoom * (pinchDistance() / pinchStart), ZOOM_MIN, ZOOM_MAX);
+    lastTouch = performance.now();
+    return;
+  }
   if(!dragging) return;
   const dx = e.clientX - lx, dy = e.clientY - ly;
   lx = e.clientX; ly = e.clientY;
@@ -748,9 +860,40 @@ cv.addEventListener("pointermove", e => {
   pitch = clamp(pitch - dy * 0.006, 0.20, 1.15);
   lastTouch = performance.now();
 });
-function endDrag(){ dragging = false; cv.style.cursor = "grab"; lastTouch = performance.now(); }
+function endDrag(e){
+  savePrefsSoon();
+  if(e && e.pointerId !== undefined){
+    pointers.delete(e.pointerId);
+    if(pointers.size < 2) pinchStart = 0;
+    if(pointers.size === 1){                       // back to a single finger: resume panning
+      const p = Array.from(pointers.values())[0];
+      lx = p.x; ly = p.y; dragging = true; vel = 0;
+      return;
+    }
+  }
+  dragging = false; cv.style.cursor = "grab"; lastTouch = performance.now();
+}
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
+
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoomTarget = clamp(zoomTarget * Math.exp(-e.deltaY * 0.0016), ZOOM_MIN, ZOOM_MAX);
+  lastTouch = performance.now();
+  hint.style.opacity = "0";
+  savePrefsSoon();
+}, { passive: false });
+
+cv.addEventListener("dblclick", () => { zoomTarget = 1; savePrefsSoon(); });
+addEventListener("keydown", e => {
+  if(e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+  if(e.key === "+" || e.key === "="){ zoomTarget = clamp(zoomTarget * 1.15, ZOOM_MIN, ZOOM_MAX); }
+  else if(e.key === "-" || e.key === "_"){ zoomTarget = clamp(zoomTarget / 1.15, ZOOM_MIN, ZOOM_MAX); }
+  else if(e.key === "0"){ zoomTarget = 1; }
+  else return;
+  e.preventDefault();
+  savePrefsSoon();
+});
 
 let last = performance.now();
 
@@ -773,9 +916,13 @@ function tick(now){
     }
   }
 
+  if(Math.abs(zoomTarget - zoom) > 0.0008) zoom += (zoomTarget - zoom) * Math.min(1, dt * 9);
+
   updateWeather(dt);
   updateAudio();
-  render(now, dt);
+  const active = rainAmt > 0.01 || snowAmt > 0.01 || moodAt(hour).night > 0.10 ||
+                 Math.abs(zoomTarget - zoom) > 0.0008 || dragging || Math.abs(vel) > 0.001;
+  render(now, dt, active);
   requestAnimationFrame(tick);
 }
 
