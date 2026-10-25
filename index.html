@@ -675,19 +675,22 @@ hourInput.addEventListener("input", () => {
   cycleOn = false;
   cycleBtn.setAttribute("aria-pressed", "false");
   updateClock();
+  savePrefs();
 });
 
 cycleBtn.addEventListener("click", () => {
   cycleOn = !cycleOn;
   cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  savePrefs();
 });
 
 function setWeather(which){
+  currentWx = which;
   rainTarget = which === "rain" ? 1 : 0;
   snowTarget = which === "snow" ? 1 : 0;
   for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === which));
 }
-for(const b of wxBtns) b.addEventListener("click", () => setWeather(b.dataset.wx));
+for(const b of wxBtns) b.addEventListener("click", () => { setWeather(b.dataset.wx); savePrefs(); });
 
 sndBtn.addEventListener("click", async () => {
   if(!audioInit()) return;
@@ -703,7 +706,29 @@ sndBtn.addEventListener("click", async () => {
 volInput.addEventListener("input", () => {
   vol = parseFloat(volInput.value);
   if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.85, ac.currentTime, 0.2);
+  savePrefs();
 });
+
+/* remember the last look so the page opens the way it was left */
+const PREF_KEY = "pagoda-garden.v1";
+let currentWx = "clear";
+function savePrefs(){
+  try { localStorage.setItem(PREF_KEY, JSON.stringify({ hour, cycleOn, wx: currentWx, vol })); } catch(e){}
+}
+function loadPrefs(){
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); } catch(e){}
+  if(!p) return;
+  if(Number.isFinite(p.hour)) hour = p.hour;
+  if(typeof p.cycleOn === "boolean") cycleOn = p.cycleOn;
+  if(typeof p.vol === "number"){ vol = p.vol; volInput.value = String(vol); }
+  hourInput.value = hour.toFixed(2);
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  updateClock();
+  setWeather(typeof p.wx === "string" ? p.wx : "clear");
+}
+loadPrefs();
+setTimeout(() => { hint.style.opacity = "0"; }, 14000);
 
 /* -------------------------------------------------------------------- loop */
 cv.addEventListener("pointerdown", e => {
