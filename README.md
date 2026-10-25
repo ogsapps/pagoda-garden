@@ -12,11 +12,22 @@ day/night cycle, weather and procedural ambient audio.
 | Look around | drag (arrow keys not used) |
 | Zoom | scroll wheel, pinch, the `−` / `+` buttons, `+` / `-` keys, double-click to reset |
 | Time of day | the time slider, or `cycle` to let a full day pass in seven minutes |
-| Weather | `clear` / `rain` / `snow` |
+| Location | `location` picks a city: the scene jumps to that city's local time and its current weather |
+| Weather | `clear` / `rain` / `snow` (picking one by hand stops the location auto-weather) |
 | Ambience | `sound` (browsers need one click before audio can start), volume slider |
 
-Time, weather, volume and zoom are remembered in `localStorage`. The controls fade out
-when you stop touching them; move the pointer to bring them back.
+Time, location, weather, volume and zoom are remembered in `localStorage`. The controls fade
+out when you stop touching them; move the pointer to bring them back.
+
+### Location mode
+
+Vancouver, Toronto, Hawai'i, Hong Kong and Amsterdam. The clock comes from `Intl` with the
+city's IANA time zone, so DST is handled and no request is needed. Conditions come from
+[Open-Meteo](https://open-meteo.com/) (`current=weather_code,temperature_2m,cloud_cover`),
+which needs no API key and allows browser requests; the WMO code picks clear / rain / snow
+and the cloud cover flattens the light. It refreshes every 15 minutes and the clock re-syncs
+every 30 seconds. Only the fixed city coordinates are sent — nothing about you. Offline, the
+clock still works and the weather simply stays where it was.
 
 ## What is in the scene
 
@@ -30,7 +41,7 @@ when you stop touching them; move the pointer to bring them back.
   five-voice pad and a sub bass, with sparse sine "music box" plucks in a D-major pentatonic
   through a convolution reverb (impulse generated in the page), plus air and a rain bed.
   Everything runs through a compressor and a soft high shelf, and the default level is quiet
-  (about -34 dBFS RMS at 50% volume) so it can sit in the background all day.
+  (about -42 dBFS RMS at 25% volume) so it can sit in the background all day.
 
 ## Notes on the rendering
 
