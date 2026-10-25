@@ -175,19 +175,9 @@ function resize(){
 addEventListener("resize", resize);
 
 /* ------------------------------------------------------------------- world */
-const vox = [];                       // [x, y, z, color]
-const seen = new Set();
-function put(x, y, z, c){
-  const k = x + "," + y + "," + z;
-  if(!seen.has(k)){ seen.add(k); vox.push([x, y, z, c]); }
-}
-function rep(x, y, z, c){
-  for(let i = 0; i < vox.length; i++){
-    const v = vox[i];
-    if(v[0] === x && v[1] === y && v[2] === z){ v[3] = c; return; }
-  }
-}
-
+// Every scene is voxels from the same little vocabulary: a 22x22 plot, water, a path,
+// trees, the pagoda, and one landmark that names the city. Each scene derives its own
+// arrays and its own camera fit, so switching cities is a reference swap.
 const COL = {
   grassA:"#68a84c", grassB:"#74b855",
   stone:"#969599", stoneTop:"#a5a4a9", path:"#a39c8d",
@@ -196,125 +186,332 @@ const COL = {
   trunk:"#6d4a2f", leaf:"#3d7b36", leaf2:"#4c9044"
 };
 
-// pond (x 3..7, z 4..8)
-const pond = new Set();
-for(let x = 3; x <= 7; x++) for(let z = 4; z <= 8; z++) pond.add(x + "," + z);
-
-// winding stone path: south edge -> pagoda platform (4-connected, no gaps)
-const pathCells = [];
-for(let z = 1; z <= 5; z++) pathCells.push([9, z]);
-for(let x = 9; x <= 11; x++) pathCells.push([x, 5]);
-for(let z = 5; z <= 9; z++) pathCells.push([11, z]);
-for(let x = 11; x <= 15; x++) pathCells.push([x, 9]);
-for(let z = 9; z <= 11; z++) pathCells.push([15, z]);
-const pathSet = new Set(pathCells.map(p => p[0] + "," + p[1]));
-
-for(let x = 0; x < 22; x++){
-  for(let z = 0; z < 22; z++){
-    const key = x + "," + z;
-    if(pond.has(key)){ put(x, 0, z, COL.water); continue; }
-    if(pathSet.has(key)){ put(x, 0, z, COL.path); continue; }
-    put(x, 0, z, ((x + z) & 1) ? COL.grassA : COL.grassB);
-  }
-}
-
-[[4,5],[6,6],[6,4],[4,8],[7,7]].forEach(p => put(p[0], 1, p[1], COL.lily));
-[[4,5],[6,6]].forEach(p => put(p[0], 2, p[1], COL.flower));
-
-function tree(x, z){
-  put(x, 1, z, COL.trunk); put(x, 2, z, COL.trunk); put(x, 3, z, COL.trunk);
-  for(let dx = -1; dx <= 1; dx++) for(let dz = -1; dz <= 1; dz++){
-    put(x + dx, 4, z + dz, COL.leaf);
-    if(!(dx && dz)) put(x + dx, 5, z + dz, COL.leaf2);
-  }
-  put(x, 6, z, COL.leaf);
-}
-tree(2, 13); tree(6, 17); tree(19, 5); tree(17, 2);
-
-// stone platform (2 layers) around the pagoda centre (15,15)
-for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++){
-  put(x, 1, z, COL.stone);
-  put(x, 2, z, COL.stoneTop);
-}
-put(15, 1, 11, COL.stoneTop);          // entrance step
-
-// pagoda: cream walls, dark red overhanging roofs
-for(let y = 3; y <= 4; y++) for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) put(x, y, z, COL.wall);
-for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++) put(x, 5, z, COL.roof);
-for(let y = 6; y <= 7; y++) for(let x = 14; x <= 17; x++) for(let z = 14; z <= 17; z++) put(x, y, z, COL.wall);
-for(let x = 13; x <= 18; x++) for(let z = 13; z <= 18; z++) put(x, 8, z, COL.roof);
-for(let y = 9; y <= 10; y++) for(let x = 14; x <= 16; x++) for(let z = 14; z <= 16; z++) put(x, y, z, COL.wall);
-for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) put(x, 11, z, COL.roof);
-put(15, 12, 15, COL.gold); put(15, 13, 15, COL.gold);   // spire
-rep(13, 3, 15, COL.door); rep(13, 4, 15, COL.door);     // doorway
-
-/* ------------------------------------------------------- static cube data */
-// fixed world light: the top faces catch it, the two sides stay readable from
-// either camera side (a pure -x/-z light left every visible side at the 0.34 floor)
-// faces: 0 +x, 1 -x, 2 +z, 3 -z, 4 top
-// (the -z normal used to be 0, which hid every -z face: neighbour test hit the
+// faces: 0 +x, 1 -x, 2 +z, 3 -z, 4 top; fixed light so both sides read from any angle
+// (the -z normal used to be 0, which hid every -z face: the neighbour probe hit the
 //  cube itself and the back-face test read 0 <= 0)
 const NX = [1, -1, 0, 0, 0];
 const NY = [0, 0, 0, 0, 1];
 const NZ = [0, 0, 1, -1, 0];
-
 const FB = [0.84, 0.60, 0.72, 0.52, 1.00];
-
-const n = vox.length;
-const pos = new Float64Array(n * 6);    // X0,X1,Y0,Y1,Z0,Z1 offsets from the scene centre
-const occ = new Uint8Array(n);          // bit f set: face f is covered by a neighbour
-const cols = new Array(n);              // cols[i][f] = pre-shaded colour string
 const shadeCache = new Map();
-const cx0 = 10.5, cy0 = 3.4, cz0 = 10.5;
 
-for(let i = 0; i < n; i++){
-  const v = vox[i];
-  const j = i * 6;
-  pos[j]     = v[0] - cx0;  pos[j + 1] = v[0] + 1 - cx0;
-  pos[j + 2] = v[1] - cy0;  pos[j + 3] = v[1] + 1 - cy0;
-  pos[j + 4] = v[2] - cz0;  pos[j + 5] = v[2] + 1 - cz0;
+function shade(col, f){
+  const key = col + "|" + f;
+  let str = shadeCache.get(key);
+  if(str === undefined){
+    const b = FB[f];
+    str = "rgb(" + Math.round(Math.min(255, parseInt(col.slice(1, 3), 16) * b)) + "," +
+                  Math.round(Math.min(255, parseInt(col.slice(3, 5), 16) * b)) + "," +
+                  Math.round(Math.min(255, parseInt(col.slice(5, 7), 16) * b)) + ")";
+    shadeCache.set(key, str);
+  }
+  return str;
+}
 
-  const c = v[3], cl = [];
-  for(let f = 0; f < 5; f++){
-    const key = c + "|" + f;
-    let str = shadeCache.get(key);
-    if(str === undefined){
-      const b = FB[f];
-      str = "rgb(" + Math.round(Math.min(255, parseInt(c.slice(1, 3), 16) * b)) + "," +
-                    Math.round(Math.min(255, parseInt(c.slice(3, 5), 16) * b)) + "," +
-                    Math.round(Math.min(255, parseInt(c.slice(5, 7), 16) * b)) + ")";
-      shadeCache.set(key, str);
+function makeScene(name, lamps, build){
+  const vox = [], seen = new Set();
+  const put = (x, y, z, c) => {
+    const k = x + "," + y + "," + z;
+    if(!seen.has(k)){ seen.add(k); vox.push([x, y, z, c]); }
+  };
+  const rep = (x, y, z, c) => {
+    for(let i = 0; i < vox.length; i++){
+      const v = vox[i];
+      if(v[0] === x && v[1] === y && v[2] === z){ v[3] = c; return; }
     }
-    cl.push(str);
-  }
-  cols[i] = cl;
+  };
+  build({ put, rep });
 
-  let m = 0;
-  for(let f = 0; f < 5; f++){
-    if(seen.has((v[0] + NX[f]) + "," + (v[1] + NY[f]) + "," + (v[2] + NZ[f]))) m |= (1 << f);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for(const v of vox){
+    if(v[0] < minX) minX = v[0];
+    if(v[0] > maxX) maxX = v[0];
+    if(v[1] < minY) minY = v[1];
+    if(v[1] > maxY) maxY = v[1];
+    if(v[2] < minZ) minZ = v[2];
+    if(v[2] > maxZ) maxZ = v[2];
   }
-  occ[i] = m;
+  const cx = (minX + maxX + 1) / 2, cy = (minY + maxY + 1) / 2, cz = (minZ + maxZ + 1) / 2;
+  const extX = maxX + 1 - minX, extY = maxY + 1 - minY, extZ = maxZ + 1 - minZ;
+  const fit = Math.max(extX, extZ, extY * 1.35) + 6;
+
+  const n = vox.length;
+  const pos = new Float64Array(n * 6);
+  const occ = new Uint8Array(n);
+  const cols = new Array(n);
+  for(let i = 0; i < n; i++){
+    const v = vox[i], j = i * 6;
+    pos[j]     = v[0] - cx;  pos[j + 1] = v[0] + 1 - cx;
+    pos[j + 2] = v[1] - cy;  pos[j + 3] = v[1] + 1 - cy;
+    pos[j + 4] = v[2] - cz;  pos[j + 5] = v[2] + 1 - cz;
+
+    const cl = [];
+    for(let f = 0; f < 5; f++) cl.push(shade(v[3], f));
+    cols[i] = cl;
+
+    let m = 0;
+    for(let f = 0; f < 5; f++){
+      if(seen.has((v[0] + NX[f]) + "," + (v[1] + NY[f]) + "," + (v[2] + NZ[f]))) m |= (1 << f);
+    }
+    occ[i] = m;
+  }
+
+  const FC = new Float64Array(n * 15);
+  for(let i = 0; i < n; i++){
+    const j = i * 6, b = i * 15;
+    const X0 = pos[j], X1 = pos[j + 1], Y0 = pos[j + 2], Y1 = pos[j + 3], Z0 = pos[j + 4], Z1 = pos[j + 5];
+    const xm = (X0 + X1) * 0.5, ym = (Y0 + Y1) * 0.5, zm = (Z0 + Z1) * 0.5;
+    FC[b]      = X1; FC[b + 1]  = ym; FC[b + 2]  = zm;
+    FC[b + 3]  = X0; FC[b + 4]  = ym; FC[b + 5]  = zm;
+    FC[b + 6]  = xm; FC[b + 7]  = ym; FC[b + 8]  = Z1;
+    FC[b + 9]  = xm; FC[b + 10] = ym; FC[b + 11] = Z0;
+    FC[b + 12] = xm; FC[b + 13] = Y1; FC[b + 14] = zm;
+  }
+
+  const pts = new Float64Array(n * 12);
+  const faceIdx = new Int32Array(n * 5);
+  const faceDepth = new Float64Array(n * 5);
+  const faceOrder = new Array(n * 5);
+  for(let k = 0; k < n * 5; k++) faceOrder[k] = k;
+
+  return {
+    name, lamps: lamps || [], vox, n, pos, occ, cols, FC, pts, faceIdx, faceDepth, faceOrder,
+    cx, cy, cz, fit, byFaceDepth: (a, b) => faceDepth[a] - faceDepth[b]
+  };
 }
 
-const FC = new Float64Array(n * 15);    // per cube, per face: face-centre x,y,z
-for(let i = 0; i < n; i++){
-  const j = i * 6, b = i * 15;
-  const X0 = pos[j], X1 = pos[j + 1], Y0 = pos[j + 2], Y1 = pos[j + 3],
-        Z0 = pos[j + 4], Z1 = pos[j + 5];
-  const xm = (X0 + X1) * 0.5, ym = (Y0 + Y1) * 0.5, zm = (Z0 + Z1) * 0.5;
-  FC[b]      = X1; FC[b + 1]  = ym; FC[b + 2]  = zm;
-  FC[b + 3]  = X0; FC[b + 4]  = ym; FC[b + 5]  = zm;
-  FC[b + 6]  = xm; FC[b + 7]  = ym; FC[b + 8]  = Z1;
-  FC[b + 9]  = xm; FC[b + 10] = ym; FC[b + 11] = Z0;
-  FC[b + 12] = xm; FC[b + 13] = Y1; FC[b + 14] = zm;
+/* ------------------------------------------------------------ scene pieces */
+function plot(P, opts){
+  const { water, path, g1, g2, edge } = opts;
+  const waterSet = new Set(water), pathSet = new Set(path);
+  for(let x = 0; x < 22; x++){
+    for(let z = 0; z < 22; z++){
+      const k = x + "," + z;
+      if(waterSet.has(k)){ P.put(x, 0, z, COL.water); continue; }
+      if(pathSet.has(k)){ P.put(x, 0, z, edge || COL.path); continue; }
+      P.put(x, 0, z, ((x + z) & 1) ? g1 : g2);
+    }
+  }
+}
+const box = (x0, z0, x1, z1) => {
+  const out = [];
+  for(let x = x0; x <= x1; x++) for(let z = z0; z <= z1; z++) out.push([x, z]);
+  return out;
+};
+
+// the pagoda, on its two-layer stone platform
+function pagoda(P, roof, wall, gold){
+  for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++){
+    P.put(x, 1, z, COL.stone);
+    P.put(x, 2, z, COL.stoneTop);
+  }
+  P.put(15, 1, 11, COL.stoneTop);
+  for(let y = 3; y <= 4; y++) for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) P.put(x, y, z, wall);
+  for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++) P.put(x, 5, z, roof);
+  for(let y = 6; y <= 7; y++) for(let x = 14; x <= 17; x++) for(let z = 14; z <= 17; z++) P.put(x, y, z, wall);
+  for(let x = 13; x <= 18; x++) for(let z = 13; z <= 18; z++) P.put(x, 8, z, roof);
+  for(let y = 9; y <= 10; y++) for(let x = 14; x <= 16; x++) for(let z = 14; z <= 16; z++) P.put(x, y, z, wall);
+  for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) P.put(x, 11, z, roof);
+  P.put(15, 12, 15, gold); P.put(15, 13, 15, gold);
+  P.rep(13, 3, 15, COL.door); P.rep(13, 4, 15, COL.door);
 }
 
-const pts = new Float64Array(n * 12);      // per cube: 4 screen-x + 8 screen-y corners
-const faceIdx = new Int32Array(n * 5);
-const faceDepth = new Float64Array(n * 5);
-const faceOrder = new Array(n * 5);
-for(let k = 0; k < n * 5; k++) faceOrder[k] = k;
-const byFaceDepth = (a, b) => faceDepth[a] - faceDepth[b];
+function leafyTree(P, x, z, c1, c2){
+  P.put(x, 1, z, COL.trunk); P.put(x, 2, z, COL.trunk); P.put(x, 3, z, COL.trunk);
+  for(let dx = -1; dx <= 1; dx++) for(let dz = -1; dz <= 1; dz++){
+    P.put(x + dx, 4, z + dz, c1);
+    if(!(dx && dz)) P.put(x + dx, 5, z + dz, c2);
+  }
+  P.put(x, 6, z, c1);
+}
+function conifer(P, x, z, h, c1, c2){
+  P.put(x, 1, z, COL.trunk);
+  for(let y = 2; y <= h; y++){
+    const r = y > h - 2 ? 0 : (y > h - 4 ? 1 : 2);
+    for(let dx = -r; dx <= r; dx++) for(let dz = -r; dz <= r; dz++){
+      if(Math.abs(dx) + Math.abs(dz) > r + 1) continue;
+      P.put(x + dx, y, z + dz, ((y + dx + dz) & 1) ? c1 : c2);
+    }
+  }
+  P.put(x, h + 1, z, c2);
+}
+function maple(P, x, z, c1, c2, c3){
+  P.put(x, 1, z, COL.trunk); P.put(x, 2, z, COL.trunk); P.put(x, 3, z, COL.trunk);
+  for(let dx = -2; dx <= 2; dx++) for(let dz = -2; dz <= 2; dz++){
+    if(Math.abs(dx) + Math.abs(dz) > 3) continue;
+    const c = ((dx * 3 + dz * 5) % 3 === 0) ? c1 : ((dx + dz) & 1 ? c2 : c3);
+    P.put(x + dx, 4, z + dz, c);
+    if(Math.abs(dx) + Math.abs(dz) <= 1) P.put(x + dx, 5, z + dz, c);
+  }
+  P.put(x, 6, z, c1);
+}
+function palm(P, x, z, lean){
+  let lx = x;
+  for(let y = 1; y <= 5; y++){
+    P.put(lx, y, z, COL.trunk);
+    if(y > 2 && Math.sign(lean)) lx += Math.sign(lean);
+  }
+  const top = 6;
+  P.put(lx, top, z, COL.leaf);
+  for(const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){
+    P.put(lx + dx, top, z + dz, COL.leaf2);
+    if(dx && dz) continue;
+    P.put(lx + dx * 2, top, z + dz * 2, COL.leaf);
+  }
+  P.put(lx, top + 1, z, COL.leaf2);
+}
+function tower(P, x0, z0, w, h, body, cap){
+  for(let y = 1; y <= h; y++){
+    for(let x = x0; x < x0 + w; x++) for(let z = z0; z < z0 + w; z++){
+      const win = (y % 3 === 0) && ((x + z) % 2 === 0);
+      P.put(x, y, z, win ? cap : body);
+    }
+  }
+  for(let x = x0; x < x0 + w; x++) for(let z = z0; z < z0 + w; z++) P.put(x, h + 1, z, cap);
+}
+function house(P, x, z, w, h, body, roof){
+  for(let y = 1; y <= h; y++) for(let i = 0; i < w; i++) P.put(x + i, y, z, body);
+  for(let i = 0; i < w; i++) P.put(x + i, h + 1, z, roof);
+  if(w >= 3) P.put(x + 1, h + 2, z, roof);
+}
+
+/* ----------------------------------------------------------------- scenes */
+const GARDEN_LAMPS = [[12.55, 3.6, 15.0, 1.30], [12.9, 1.4, 11.2, 0.70], [10.4, 0.9, 5.0, 0.55], [9.4, 0.9, 8.0, 0.55]];
+const WARM_LAMPS = [[12.55, 3.6, 15.0, 1.15], [9.6, 1.4, 11.2, 0.55]];
+
+function buildGarden(P){
+  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
+  plot(P, { water: box(3, 4, 7, 8), path, g1: COL.grassA, g2: COL.grassB });
+  [[4,5],[6,6],[6,4],[4,8],[7,7]].forEach(p => P.put(p[0], 1, p[1], COL.lily));
+  [[4,5],[6,6]].forEach(p => P.put(p[0], 2, p[1], COL.flower));
+  leafyTree(P, 2, 13, COL.leaf, COL.leaf2);
+  leafyTree(P, 6, 17, COL.leaf, COL.leaf2);
+  leafyTree(P, 19, 5, COL.leaf, COL.leaf2);
+  leafyTree(P, 17, 2, COL.leaf, COL.leaf2);
+  pagoda(P, COL.roof, COL.wall, COL.gold);
+}
+
+function buildVancouver(P){
+  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
+  plot(P, { water: box(2, 3, 8, 10), path, g1: "#4d7c46", g2: "#578a4d", edge: "#8f8a80" });
+  // orca breaking the surface: black back, white saddle, dorsal fin
+  P.put(4, 1, 6, "#1d2733"); P.put(5, 1, 6, "#1d2733"); P.put(6, 1, 7, "#1d2733");
+  P.put(4, 1, 7, "#eef2f5"); P.put(5, 2, 6, "#1d2733"); P.put(5, 3, 6, "#1d2733");
+  P.put(6, 2, 7, "#1d2733"); P.put(3, 1, 7, "#1d2733");
+  // mossy rocks along the shore
+  [[9,4],[9,5],[2,4],[2,9],[8,11]].forEach(([x, z]) => { P.put(x, 1, z, "#6f7468"); P.put(x, 1, z + 1, "#7c8173"); });
+  conifer(P, 2, 13, 7, "#24512f", "#2e6338");
+  conifer(P, 6, 17, 8, "#1f4729", "#2a5c33");
+  conifer(P, 19, 5, 7, "#24512f", "#2e6338");
+  conifer(P, 17, 2, 6, "#1f4729", "#2a5c33");
+  conifer(P, 4, 9, 5, "#265730", "#2e6338");
+  // cedar trunks and stumps
+  P.put(7, 1, 13, "#5b4632"); P.put(8, 1, 14, "#5b4632");
+  pagoda(P, "#7d2b22", COL.wall, COL.gold);
+}
+
+function buildToronto(P){
+  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
+  plot(P, { water: box(0, 19, 21, 21), path, g1: "#7d8a52", g2: "#899660" });
+  maple(P, 2, 13, "#c0592a", "#d98a2b", "#a83f27");
+  maple(P, 6, 17, "#d98a2b", "#c0592a", "#e0a63c");
+  maple(P, 19, 5, "#a83f27", "#c0592a", "#d98a2b");
+  maple(P, 17, 2, "#c0592a", "#e0a63c", "#a83f27");
+  // CN Tower
+  const stone = "#b9b7ae", glass = "#7f97a8";
+  for(let y = 1; y <= 15; y++) for(let x = 3; x <= 4; x++) for(let z = 3; z <= 4; z++) P.put(x, y, z, stone);
+  for(let y = 16; y <= 18; y++) for(let x = 2; x <= 5; x++) for(let z = 2; z <= 5; z++) P.put(x, y, z, glass);
+  for(let y = 19; y <= 24; y++) P.put(3, y, 3, stone);
+  P.put(3, 25, 3, "#d8d5cc");
+  // Rogers Centre dome
+  for(let x = 16; x <= 20; x++) for(let z = 2; z <= 4; z++) P.put(x, 1, z, "#cfd3d6");
+  for(let x = 17; x <= 19; x++) for(let z = 2; z <= 3; z++) P.put(x, 2, z, "#dfe3e6");
+  P.put(18, 3, 2, "#dfe3e6"); P.put(18, 3, 3, "#dfe3e6");
+  pagoda(P, COL.roof, COL.wall, COL.gold);
+}
+
+function buildHawaii(P){
+  const path = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],[10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
+  plot(P, { water: box(3, 5, 9, 11), path, g1: "#b9ac82", g2: "#c4b78c", edge: "#a89870" });
+  // grass patches on the sand
+  [[1,1],[12,4],[18,18],[4,17]].forEach(([x, z]) => { for(let dx = 0; dx < 3; dx++) for(let dz = 0; dz < 2; dz++) P.put(x + dx, 0, z + dz, "#7fae57"); });
+  palm(P, 2, 13, 1); palm(P, 6, 17, -1); palm(P, 19, 5, 1); palm(P, 17, 2, 0);
+  // black lava rock and hibiscus
+  [[11,5],[12,6],[11,6],[2,9],[3,9]].forEach(([x, z]) => P.put(x, 1, z, "#2b2b30"));
+  [[4,4],[9,9],[13,1],[16,13]].forEach(([x, z]) => P.put(x, 1, z, "#e0576f"));
+  P.put(5, 1, 7, "#f0a03c"); P.put(8, 1, 10, "#e0576f");
+  pagoda(P, "#a03a2a", "#f6efdc", COL.gold);
+  // small volcanic cone in the back corner
+  for(let y = 1; y <= 3; y++){
+    const r = 4 - y;
+    for(let x = 1; x <= 1 + r; x++) for(let z = 1; z <= 1 + r; z++) P.put(x, y, z, "#4a3a34");
+  }
+  P.put(2, 4, 2, "#8c4a3a");
+}
+
+function buildHongKong(P){
+  const path = [[9,3],[9,4],[9,5],[10,6],[10,7],[10,8],[11,9],[12,10],[13,11],[14,11],[15,11],[16,11]];
+  plot(P, { water: box(0, 0, 21, 2), path, g1: "#8d9299", g2: "#989da3", edge: "#b7b2a5" });
+  // towers on the back hill
+  tower(P, 2, 4, 2, 12, "#6d8fa8", "#a8c3d6");
+  tower(P, 5, 5, 2, 17, "#8b8f96", "#c9cdd2");
+  tower(P, 8, 3, 2, 10, "#7d8b7a", "#b5c3b2");
+  tower(P, 3, 8, 2, 8,  "#6d7f92", "#aabccd");
+  tower(P, 6, 9, 2, 14, "#9a8f86", "#cfc5ba");
+  tower(P, 9, 6, 1, 20, "#77909f", "#b8cfdd");
+  // lantern posts along the path
+  [[9,7],[10,9],[12,10]].forEach(([x, z]) => {
+    P.put(x, 1, z, "#5b4438");
+    P.put(x, 2, z, "#c8342a");
+  });
+  pagoda(P, "#c9a02c", "#c8342a", "#f0cf6a");
+}
+const HK_LAMPS = [[15.4, 4.0, 15.0, 1.15], [9.4, 2.2, 7.0, 0.75], [12.4, 2.2, 10.0, 0.65]];
+
+function buildAmsterdam(P){
+  const canal = [];
+  for(let z = 3; z <= 18; z++){ canal.push([1, z]); canal.push([2, z]); }
+  const path = [[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],[15,10],[15,11],[15,12]];
+  plot(P, { water: canal, path, g1: "#6f9c4b", g2: "#7aa955", edge: "#9d6b52" });
+  // bridges over the canal
+  for(const bz of [6, 14]){
+    for(let x = 0; x <= 3; x++) P.put(x, 1, bz, "#9d6b52");
+    P.put(0, 1, bz - 1, "#8a5c46"); P.put(3, 1, bz - 1, "#8a5c46");
+  }
+  // canal boats
+  P.put(1, 1, 10, "#3e4a52"); P.put(2, 1, 10, "#3e4a52"); P.put(1, 2, 10, "#c9c2b2");
+  // row houses along the back
+  const rows = [
+    [6, 0, 2, 6, "#b4553f", "#7d3a2c"], [8, 0, 3, 8, "#c9c2b2", "#5c4a3a"],
+    [11, 0, 2, 7, "#8a5c46", "#4a3a2e"], [13, 0, 3, 9, "#a3442f", "#6d3226"],
+    [16, 0, 2, 6, "#d5cdbc", "#5c4a3a"], [18, 0, 3, 7, "#9d6b52", "#4a3a2e"]
+  ];
+  for(const [x, z, w, h, body, roof] of rows) house(P, x, z, w, h, body, roof);
+  // tulip beds
+  const tul = ["#d24b6a", "#e8b23c", "#c85a9a", "#e2603f"];
+  for(let i = 0; i < 4; i++){
+    for(let x = 5; x <= 14; x += 2) P.put(x, 1, 3 + i, tul[(i + x) % tul.length]);
+  }
+  leafyTree(P, 2, 15, "#4c7a3a", "#5c8f45");
+  pagoda(P, COL.roof, "#f6efdc", COL.gold);
+}
+
+const SCENES = [
+  makeScene("Garden", GARDEN_LAMPS, buildGarden),
+  makeScene("Vancouver", GARDEN_LAMPS, buildVancouver),
+  makeScene("Toronto", [[12.55, 3.6, 15.0, 1.25], [9.6, 1.4, 11.2, 0.6]], buildToronto),
+  makeScene("Hawai'i", WARM_LAMPS, buildHawaii),
+  makeScene("Hong Kong", HK_LAMPS, buildHongKong),
+  makeScene("Amsterdam", [[12.55, 3.6, 15.0, 1.2], [4.2, 1.4, 9.2, 0.55]], buildAmsterdam)
+];
+let S = SCENES[0];
+
+function setScene(ix){
+  const next = SCENES[ix] || SCENES[0];
+  if(next === S) return;
+  S = next;
+  cacheState = null;
+}
 
 /* ------------------------------------------------------------------ camera */
 let yaw = 3.86, pitch = 0.52;
@@ -392,20 +589,12 @@ function seedParticles(){
 
 /* -------------------------------------------------------------- projection */
 function project(wx, wy, wz){
-  const X = wx - cx0, Y = wy - cy0, Z = wz - cz0;
+  const X = wx - S.cx, Y = wy - S.cy, Z = wz - S.cz;
   return [
     (X * cam.ca - Z * cam.sa) * cam.s + cam.ox,
     (X * cam.ssp - Y * cam.cp + Z * cam.csp) * cam.s + cam.oy
   ];
 }
-
-// warm points that glow once it is dark: pagoda doorway, steps, two path lamps
-const LAMPS = [
-  [12.55, 3.6, 15.0, 1.30],
-  [12.9, 1.4, 11.2, 0.70],
-  [10.4, 0.9, 5.0, 0.55],
-  [9.4, 0.9, 8.0, 0.55]
-];
 
 // soft light blobs are pre-rendered once per colour and blitted, which is far
 // cheaper than building a radial gradient every frame (the Firefox case)
@@ -414,16 +603,16 @@ function glowSprite(col){
   const key = col.join(",");
   let c = glowSprites.get(key);
   if(c) return c;
-  const S = 96;
+  const SIZE = 96;
   c = document.createElement("canvas");
-  c.width = c.height = S;
+  c.width = c.height = SIZE;
   const g = c.getContext("2d");
-  const rg = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  const rg = g.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
   rg.addColorStop(0, "rgba(" + key + ",1)");
   rg.addColorStop(0.40, "rgba(" + key + ",0.32)");
   rg.addColorStop(1, "rgba(" + key + ",0)");
   g.fillStyle = rg;
-  g.fillRect(0, 0, S, S);
+  g.fillRect(0, 0, SIZE, SIZE);
   glowSprites.set(key, c);
   return c;
 }
@@ -444,7 +633,8 @@ function drawSceneLayer(now){
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const scp = sa * cp, ccp = ca * cp;
   const ssp = sa * sp, csp = ca * sp;
-  const s = Math.min(W, H) / 27 * zoom, ox = W / 2, oy = H / 2;
+  const s = Math.min(W, H) / S.fit * zoom, ox = W / 2, oy = H / 2;
+  const pts = S.pts;
   cam.ca = ca; cam.sa = sa; cam.cp = cp; cam.sp = sp;
   cam.ssp = ssp; cam.csp = csp; cam.s = s; cam.ox = ox; cam.oy = oy;
 
@@ -459,10 +649,10 @@ function drawSceneLayer(now){
   ctx.fillRect(0, 0, W, H);
 
   // project the 8 corners of every cube
-  for(let i = 0; i < n; i++){
+  for(let i = 0; i < S.n; i++){
     const j = i * 6, b = i * 12;
-    const X0 = pos[j], X1 = pos[j + 1], Y0 = pos[j + 2], Y1 = pos[j + 3],
-          Z0 = pos[j + 4], Z1 = pos[j + 5];
+    const X0 = S.pos[j], X1 = S.pos[j + 1], Y0 = S.pos[j + 2], Y1 = S.pos[j + 3],
+          Z0 = S.pos[j + 4], Z1 = S.pos[j + 5];
     const xc0 = X0 * ca, xc1 = X1 * ca, zs0 = Z0 * sa, zs1 = Z1 * sa;
     pts[b]     = xc0 - zs0; pts[b + 1] = xc1 - zs0;
     pts[b + 2] = xc1 - zs1; pts[b + 3] = xc0 - zs1;
@@ -476,22 +666,22 @@ function drawSceneLayer(now){
 
   // collect uncovered, camera-facing faces with a painter depth key
   let fc = 0;
-  for(let i = 0; i < n; i++){
-    const mask = occ[i], cb = i * 15;
+  for(let i = 0; i < S.n; i++){
+    const mask = S.occ[i], cb = i * 15;
     for(let f = 0; f < 5; f++){
       if(mask & (1 << f)) continue;
       if(NX[f] * scp + NY[f] * sp + NZ[f] * ccp <= 0) continue;
-      faceDepth[fc] = FC[cb + f * 3] * scp + FC[cb + f * 3 + 1] * sp + FC[cb + f * 3 + 2] * ccp;
-      faceIdx[fc] = i * 5 + f;
-      faceOrder[fc] = fc;
+      S.faceDepth[fc] = S.FC[cb + f * 3] * scp + S.FC[cb + f * 3 + 1] * sp + S.FC[cb + f * 3 + 2] * ccp;
+      S.faceIdx[fc] = i * 5 + f;
+      S.faceOrder[fc] = fc;
       fc++;
     }
   }
-  faceOrder.length = fc;
-  faceOrder.sort(byFaceDepth);
+  S.faceOrder.length = fc;
+  S.faceOrder.sort(S.byFaceDepth);
 
   for(let k = 0; k < fc; k++){
-    const q = faceIdx[faceOrder[k]], i = (q / 5) | 0, f = q % 5;
+    const q = S.faceIdx[S.faceOrder[k]], i = (q / 5) | 0, f = q % 5;
     const b = i * 12;
     const x0 = pts[b] * s + ox, x1 = pts[b + 1] * s + ox,
           x2 = pts[b + 2] * s + ox, x3 = pts[b + 3] * s + ox;
@@ -499,7 +689,7 @@ function drawSceneLayer(now){
           y2 = pts[b + 6] * s + oy, y3 = pts[b + 7] * s + oy,
           y4 = pts[b + 8] * s + oy, y5 = pts[b + 9] * s + oy,
           y6 = pts[b + 10] * s + oy, y7 = pts[b + 11] * s + oy;
-    ctx.fillStyle = cols[i][f];
+    ctx.fillStyle = S.cols[i][f];
     ctx.beginPath();
     switch(f){
       case 0: ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x2, y6); ctx.lineTo(x1, y5); break;
@@ -581,8 +771,8 @@ function drawSceneLayer(now){
   // lanterns
   const nightA = m.night;
   if(nightA > 0.10){
-    for(let i = 0; i < LAMPS.length; i++){
-      const L2 = LAMPS[i];
+    for(let i = 0; i < S.lamps.length; i++){
+      const L2 = S.lamps[i];
       const p = project(L2[0], L2[1], L2[2]);
       glow(ctx, p[0], p[1], s * 2.3 * L2[3], [255, 190, 112], 0.20 * nightA * L2[3]);
     }
@@ -592,7 +782,7 @@ function drawSceneLayer(now){
 
 function render(now, dt, active){
   const m = moodAt(hour);
-  const s = Math.min(W, H) / 27 * zoom;
+  const s = Math.min(W, H) / S.fit * zoom;
 
   // rebuild the voxel layer only when something it depends on moved
   const moved = !cacheState || W !== cacheState.w || H !== cacheState.h ||
@@ -1045,6 +1235,7 @@ async function refreshPlaceWeather(){
 function selectPlace(ix){
   placeIx = Number.isInteger(ix) ? ix : null;
   placeTemp = null;
+  setScene(placeIx === null ? 0 : placeIx + 1);      // the garden itself follows the city
   if(placeIx === null){
     wxAuto = true;
     cloudAmt = 0;

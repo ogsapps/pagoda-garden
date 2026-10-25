@@ -33,10 +33,10 @@ clock still works and the weather simply stays where it was.
 
 ## What is in the scene
 
-- ~870 voxels: a three-tier pagoda on a stone platform, pond with lily pads and flowers,
-  a stone path, four trees, spire, doorway step.
+- ~900 voxels of land and pagoda: a three-tier pagoda on a stone platform, water with lily
+  pads and flowers, a stone path, trees, spire, doorway step.
 - Day/night: sky gradient, sun/moon with a halo, a full-screen tint grade, stars, warm
-  lantern glow at the doorway and two path lamps at night, fireflies over the pond.
+  lantern glow at the doorway and path lamps at night, fireflies over the water.
 - Weather: rain (streaks plus a cooler, darker wash) and snow (drifting flakes plus a
   soft lift), both cross-faded.
 - Audio: a slow four-chord ambient progression (Dmaj9 - Bm7 - Gmaj7 - Aadd9) played by a
@@ -44,6 +44,25 @@ clock still works and the weather simply stays where it was.
   through a convolution reverb (impulse generated in the page), plus air and a rain bed.
   Everything runs through a compressor and a soft high shelf, and the default level is quiet
   (about -49 dBFS RMS at 18% volume) so it can sit in the background all day.
+
+### The city scenes
+
+Picking a city in `location` not only sets its clock and weather, it rebuilds the garden as
+that place. All six scenes share the plot, the path and the pagoda; what changes is the
+landmark, the ground and the trees. They are built once at startup (~6,000 voxels total) and
+switching is a reference swap — no per-frame cost.
+
+| Scene | Landmark | Flavour |
+| --- | --- | --- |
+| Garden (default) | the pagoda on its platform | pond, lily pads, leafy trees |
+| Vancouver | an orca breaking the surface, cedar forest, mossy rocks | deep greens, grey stone |
+| Toronto | CN Tower with its pod and antenna, Rogers Centre dome | autumn maples, lake water along one edge |
+| Hawai'i | palms, black lava rock, hibiscus, a small volcanic cone | sand and grass, wide lagoon |
+| Hong Kong | a cluster of towers with lit windows, lantern posts | harbour water, gold-roofed temple |
+| Amsterdam | canal with two bridges and a boat, six row houses | brick path, tulip beds, stepped gables |
+
+Each scene derives its own camera fit from its bounding box, so tall scenes (the tower, the
+towers) frame themselves.
 
 ## Notes on the rendering
 
