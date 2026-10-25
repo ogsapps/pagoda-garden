@@ -267,14 +267,14 @@ let rainAmt = 0, snowAmt = 0, rainTarget = 0, snowTarget = 0;
 
 function seedParticles(){
   const area = Math.max(1, innerWidth * innerHeight);
-  const nRain = clamp(Math.round(area / 6200), 120, 420);
-  const nSnow = clamp(Math.round(area / 9000), 90, 320);
+  const nRain = clamp(Math.round(area / 3400), 160, 520);
+  const nSnow = clamp(Math.round(area / 5200), 120, 420);
   const nFlies = clamp(Math.round(area / 110000), 6, 16);
 
   rain = [];
   for(let i = 0; i < nRain; i++){
-    rain.push({ x: Math.random(), y: Math.random(), v: 0.85 + Math.random() * 0.55,
-                l: 0.016 + Math.random() * 0.022, k: 0.16 + Math.random() * 0.10 });
+    rain.push({ x: Math.random(), y: Math.random(), v: 0.90 + Math.random() * 0.60,
+                l: 0.020 + Math.random() * 0.030, k: 0.16 + Math.random() * 0.10 });
   }
   snow = [];
   for(let i = 0; i < nSnow; i++){
@@ -441,8 +441,8 @@ function render(now, dt){
     const sx = (0.06 + ((hour - 6) / 12) * 0.88) * W;
     const sy = H * (0.66 - elev * 0.46);
     const warm = clamp(1 - Math.abs(hour - 12) / 7, 0, 1);
-    glow(sx, sy, glowR, [255, 232, 178], 0.20 + 0.22 * warm);
-    glow(sx, sy, Math.min(W, H) * 0.055, [255, 250, 232], 0.55);
+    glow(sx, sy, glowR * 0.8, [255, 232, 178], 0.09 + 0.13 * warm);
+    glow(sx, sy, Math.min(W, H) * 0.045, [255, 250, 232], 0.40);
   } else {
     const nightFrac = ((hour - 18 + 24) % 24) / 12;          // 0 at 18h, 1 at 6h
     const me = Math.sin(clamp(nightFrac, 0, 1) * Math.PI);
@@ -474,8 +474,10 @@ function render(now, dt){
 
   // weather particles
   if(rainAmt > 0.01){
-    ctx.strokeStyle = "rgba(186,206,226," + (0.34 * rainAmt).toFixed(3) + ")";
-    ctx.lineWidth = Math.max(1, DPR * 0.9);
+    const bright = (m.top[0] + m.top[1] + m.top[2]) / 3;
+    const col = bright > 140 ? "122,142,168" : "196,212,232";
+    ctx.strokeStyle = "rgba(" + col + "," + (0.40 * rainAmt).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1, DPR * 0.8);
     ctx.beginPath();
     for(let i = 0; i < rain.length; i++){
       const r = rain[i];
