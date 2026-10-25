@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voxel Pagoda Garden — relax</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1116}
+  canvas{position:fixed;inset:0;display:block;cursor:grab;touch-action:none}
+  #hint{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);
+        color:#e3ecf2;font:12px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;
+        opacity:.5;pointer-events:none;transition:opacity 1s ease;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+  #ui{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:15px;
+      background:rgba(14,20,26,.52);border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      color:#e9eff3;font:13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
+      opacity:0;transition:opacity .45s ease;pointer-events:none;white-space:nowrap}
+  #ui.show{opacity:1;pointer-events:auto}
+  #ui .lbl{color:#93a6b3;font-size:12px}
+  .grp{display:flex;align-items:center;gap:8px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
+      background:rgba(255,255,255,.22);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+      background:#e8cb84;box-shadow:0 0 0 4px rgba(232,203,132,.14);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#e8cb84}
+  #hour{width:104px}
+  #vol{width:62px}
+  button{font:inherit;color:#cfdae2;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+      border-radius:9px;padding:5px 9px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+  button:hover{background:rgba(255,255,255,.13);color:#fff}
+  button[aria-pressed="true"]{background:rgba(232,203,132,.18);border-color:rgba(232,203,132,.45);color:#f4e2b4}
+  #clock{font-variant-numeric:tabular-nums;color:#cfdae2;min-width:42px;text-align:center}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="hint">drag to look around &middot; enable sound for ambience</div>
+
+<div id="ui">
+  <div class="grp">
+    <span class="lbl">time</span>
+    <input id="hour" type="range" min="0" max="24" step="0.05" value="16.6" aria-label="Time of day">
+    <span id="clock">16:36</span>
+    <button id="cycle" aria-pressed="true" title="Slow day and night cycle">cycle</button>
+  </div>
+  <div class="grp">
+    <button data-wx="clear" aria-pressed="true">clear</button>
+    <button data-wx="rain" aria-pressed="false">rain</button>
+    <button data-wx="snow" aria-pressed="false">snow</button>
+  </div>
+  <div class="grp">
+    <button id="snd" aria-pressed="false">sound</button>
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6" aria-label="Volume">
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ canvas */
+const cv = document.getElementById("scene");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, vignette = null;
+
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = cv.width  = Math.max(1, Math.floor(innerWidth  * DPR));
+  H = cv.height = Math.max(1, Math.floor(innerHeight * DPR));
+  cv.style.width  = innerWidth  + "px";
+  cv.style.height = innerHeight + "px";
+  vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.22,
+                                      W / 2, H / 2, Math.max(W, H) * 0.75);
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(5,9,13,0.45)");
+  seedParticles();
+}
+addEventListener("resize", resize);
+
+/* ------------------------------------------------------------------- world */
+const vox = [];                       // [x, y, z, color]
+const seen = new Set();
+function put(x, y, z, c){
+  const k = x + "," + y + "," + z;
+  if(!seen.has(k)){ seen.add(k); vox.push([x, y, z, c]); }
+}
+function rep(x, y, z, c){
+  for(let i = 0; i < vox.length; i++){
+    const v = vox[i];
+    if(v[0] === x && v[1] === y && v[2] === z){ v[3] = c; return; }
+  }
+}
+
+const COL = {
+  grassA:"#68a84c", grassB:"#74b855",
+  stone:"#969599", stoneTop:"#a5a4a9", path:"#a39c8d",
+  water:"#2e6f9f", lily:"#3e8f4f", flower:"#e881a6",
+  wall:"#efe6cf", roof:"#8a2f26", gold:"#d6b03c", door:"#46302a",
+  trunk:"#6d4a2f", leaf:"#3d7b36", leaf2:"#4c9044"
+};
+
+// pond (x 3..7, z 4..8)
+const pond = new Set();
+for(let x = 3; x <= 7; x++) for(let z = 4; z <= 8; z++) pond.add(x + "," + z);
+
+// winding stone path: south edge to the pagoda platform
+const pathCells = [[9,1],[9,2],[10,3],[10,4],[10,5],[9,6],[9,7],[9,8],
+                   [10,9],[11,10],[12,11],[13,11],[14,11],[15,11],[16,11]];
+const pathSet = new Set(pathCells.map(p => p[0] + "," + p[1]));
+
+for(let x = 0; x < 22; x++){
+  for(let z = 0; z < 22; z++){
+    const key = x + "," + z;
+    if(pond.has(key)){ put(x, 0, z, COL.water); continue; }
+    if(pathSet.has(key)){ put(x, 0, z, COL.path); continue; }
+    put(x, 0, z, ((x + z) & 1) ? COL.grassA : COL.grassB);
+  }
+}
+
+[[4,5],[6,6],[6,4],[4,8],[7,7]].forEach(p => put(p[0], 1, p[1], COL.lily));
+[[4,5],[6,6]].forEach(p => put(p[0], 2, p[1], COL.flower));
+
+function tree(x, z){
+  put(x, 1, z, COL.trunk); put(x, 2, z, COL.trunk); put(x, 3, z, COL.trunk);
+  for(let dx = -1; dx <= 1; dx++) for(let dz = -1; dz <= 1; dz++){
+    put(x + dx, 4, z + dz, COL.leaf);
+    if(!(dx && dz)) put(x + dx, 5, z + dz, COL.leaf2);
+  }
+  put(x, 6, z, COL.leaf);
+}
+tree(2, 13); tree(6, 17); tree(19, 5); tree(17, 2);
+
+// stone platform (2 layers) around the pagoda centre (15,15)
+for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++){
+  put(x, 1, z, COL.stone);
+  put(x, 2, z, COL.stoneTop);
+}
+put(15, 1, 11, COL.stoneTop);          // entrance step
+
+// pagoda: cream walls, dark red overhanging roofs
+for(let y = 3; y <= 4; y++) for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) put(x, y, z, COL.wall);
+for(let x = 12; x <= 18; x++) for(let z = 12; z <= 18; z++) put(x, 5, z, COL.roof);
+for(let y = 6; y <= 7; y++) for(let x = 14; x <= 17; x++) for(let z = 14; z <= 17; z++) put(x, y, z, COL.wall);
+for(let x = 13; x <= 18; x++) for(let z = 13; z <= 18; z++) put(x, 8, z, COL.roof);
+for(let y = 9; y <= 10; y++) for(let x = 14; x <= 16; x++) for(let z = 14; z <= 16; z++) put(x, y, z, COL.wall);
+for(let x = 13; x <= 17; x++) for(let z = 13; z <= 17; z++) put(x, 11, z, COL.roof);
+put(15, 12, 15, COL.gold); put(15, 13, 15, COL.gold);   // spire
+rep(13, 3, 15, COL.door); rep(13, 4, 15, COL.door);     // doorway
+
+/* ------------------------------------------------------- static cube data */
+// fixed world light: the top faces catch it, the two sides stay readable from
+// either camera side (a pure -x/-z light left every visible side at the 0.34 floor)
+// faces: 0 +x, 1 -x, 2 +z, 3 -z, 4 top
+// (the -z normal used to be 0, which hid every -z face: neighbour test hit the
+//  cube itself and the back-face test read 0 <= 0)
+const NX = [1, -1, 0, 0, 0];
+const NY = [0, 0, 0, 0, 1];
+const NZ = [0, 0, 1, -1, 0];
+
+const FB = [0.84, 0.60, 0.72, 0.52, 1.00];
+
+const n = vox.length;
+const pos = new Float64Array(n * 6);    // X0,X1,Y0,Y1,Z0,Z1 offsets from the scene centre
+const occ = new Uint8Array(n);          // bit f set: face f is covered by a neighbour
+const cols = new Array(n);              // cols[i][f] = pre-shaded colour string
+const shadeCache = new Map();
+const cx0 = 10.5, cy0 = 3.4, cz0 = 10.5;
+
+for(let i = 0; i < n; i++){
+  const v = vox[i];
+  const j = i * 6;
+  pos[j]     = v[0] - cx0;  pos[j + 1] = v[0] + 1 - cx0;
+  pos[j + 2] = v[1] - cy0;  pos[j + 3] = v[1] + 1 - cy0;
+  pos[j + 4] = v[2] - cz0;  pos[j + 5] = v[2] + 1 - cz0;
+
+  const c = v[3], cl = [];
+  for(let f = 0; f < 5; f++){
+    const key = c + "|" + f;
+    let str = shadeCache.get(key);
+    if(str === undefined){
+      const b = FB[f];
+      str = "rgb(" + Math.round(Math.min(255, parseInt(c.slice(1, 3), 16) * b)) + "," +
+                    Math.round(Math.min(255, parseInt(c.slice(3, 5), 16) * b)) + "," +
+                    Math.round(Math.min(255, parseInt(c.slice(5, 7), 16) * b)) + ")";
+      shadeCache.set(key, str);
+    }
+    cl.push(str);
+  }
+  cols[i] = cl;
+
+  let m = 0;
+  for(let f = 0; f < 5; f++){
+    if(seen.has((v[0] + NX[f]) + "," + (v[1] + NY[f]) + "," + (v[2] + NZ[f]))) m |= (1 << f);
+  }
+  occ[i] = m;
+}
+
+const FC = new Float64Array(n * 15);    // per cube, per face: face-centre x,y,z
+for(let i = 0; i < n; i++){
+  const j = i * 6, b = i * 15;
+  const X0 = pos[j], X1 = pos[j + 1], Y0 = pos[j + 2], Y1 = pos[j + 3],
+        Z0 = pos[j + 4], Z1 = pos[j + 5];
+  const xm = (X0 + X1) * 0.5, ym = (Y0 + Y1) * 0.5, zm = (Z0 + Z1) * 0.5;
+  FC[b]      = X1; FC[b + 1]  = ym; FC[b + 2]  = zm;
+  FC[b + 3]  = X0; FC[b + 4]  = ym; FC[b + 5]  = zm;
+  FC[b + 6]  = xm; FC[b + 7]  = ym; FC[b + 8]  = Z1;
+  FC[b + 9]  = xm; FC[b + 10] = ym; FC[b + 11] = Z0;
+  FC[b + 12] = xm; FC[b + 13] = Y1; FC[b + 14] = zm;
+}
+
+const pts = new Float64Array(n * 12);      // per cube: 4 screen-x + 8 screen-y corners
+const faceIdx = new Int32Array(n * 5);
+const faceDepth = new Float64Array(n * 5);
+const faceOrder = new Array(n * 5);
+for(let k = 0; k < n * 5; k++) faceOrder[k] = k;
+const byFaceDepth = (a, b) => faceDepth[a] - faceDepth[b];
+
+/* ------------------------------------------------------------------ camera */
+let yaw = 3.86, pitch = 0.52;
+let dragging = false, lx = 0, ly = 0, vel = 0, lastTouch = 0;
+const cam = { ca: 1, sa: 0, cp: 1, sp: 0, ssp: 0, csp: 0, s: 1, ox: 0, oy: 0 };
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* -------------------------------------------------------------- time / mood */
+let hour = 16.6;
+let cycleOn = true;
+
+// keyframes: sky top/bottom, full-screen tint (multiply), night amount
+const MOOD = [
+  { h: 0.0,  top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 },
+  { h: 4.6,  top: [24, 30, 54],   bot: [64, 52, 80],    tint: [64, 56, 104],  ta: 0.62, night: 0.85 },
+  { h: 6.4,  top: [152, 172, 206],bot: [244, 208, 182], tint: [255, 190, 150],ta: 0.20, night: 0.18 },
+  { h: 9.0,  top: [178, 210, 232],bot: [238, 244, 246], tint: [255, 250, 240],ta: 0.05, night: 0.00 },
+  { h: 13.0, top: [188, 220, 240],bot: [240, 246, 244], tint: [255, 255, 255],ta: 0.00, night: 0.00 },
+  { h: 16.8, top: [200, 214, 236],bot: [251, 236, 212], tint: [255, 226, 186],ta: 0.12, night: 0.00 },
+  { h: 18.6, top: [112, 100, 138],bot: [240, 164, 122], tint: [255, 152, 104],ta: 0.34, night: 0.24 },
+  { h: 20.4, top: [22, 32, 54],   bot: [34, 46, 70],    tint: [36, 50, 100],  ta: 0.72, night: 0.90 },
+  { h: 24.0, top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 }
+];
+
+function moodAt(h){
+  h = ((h % 24) + 24) % 24;
+  let i = 0;
+  while(i < MOOD.length - 2 && h > MOOD[i + 1].h) i++;
+  const a = MOOD[i], b = MOOD[i + 1];
+  const t = (h - a.h) / Math.max(1e-6, b.h - a.h);
+  const mix = (p, q) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t)];
+  return {
+    top: mix(a.top, b.top), bot: mix(a.bot, b.bot), tint: mix(a.tint, b.tint),
+    ta: lerp(a.ta, b.ta), night: lerp(a.night, b.night)
+  };
+}
+const rgb = c => "rgb(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + ")";
+
+/* --------------------------------------------------------------- particles */
+let rain = [], snow = [], stars = [], flies = [];
+let rainAmt = 0, snowAmt = 0, rainTarget = 0, snowTarget = 0;
+
+function seedParticles(){
+  const area = Math.max(1, innerWidth * innerHeight);
+  const nRain = clamp(Math.round(area / 6200), 120, 420);
+  const nSnow = clamp(Math.round(area / 9000), 90, 320);
+  const nFlies = clamp(Math.round(area / 60000), 10, 34);
+
+  rain = [];
+  for(let i = 0; i < nRain; i++){
+    rain.push({ x: Math.random(), y: Math.random(), v: 0.85 + Math.random() * 0.55,
+                l: 0.016 + Math.random() * 0.022, k: 0.16 + Math.random() * 0.10 });
+  }
+  snow = [];
+  for(let i = 0; i < nSnow; i++){
+    snow.push({ x: Math.random(), y: Math.random(), v: 0.035 + Math.random() * 0.05,
+                r: 1 + Math.random() * 2.2, amp: 0.02 + Math.random() * 0.05,
+                ph: Math.random() * 6.283 });
+  }
+  stars = [];
+  for(let i = 0; i < 150; i++){
+    stars.push({ x: Math.random(), y: Math.random() * 0.58, r: 1 + Math.random() * 1.6,
+                 a: 0.35 + Math.random() * 0.65, ph: Math.random() * 6.283 });
+  }
+  flies = [];
+  for(let i = 0; i < nFlies; i++){
+    flies.push({ x: 0.15 + Math.random() * 0.7, y: 0.35 + Math.random() * 0.5,
+                 ph: Math.random() * 6.283, sp: 0.3 + Math.random() * 0.7 });
+  }
+}
+
+/* -------------------------------------------------------------- projection */
+function project(wx, wy, wz){
+  const X = wx - cx0, Y = wy - cy0, Z = wz - cz0;
+  return [
+    (X * cam.ca - Z * cam.sa) * cam.s + cam.ox,
+    (X * cam.ssp - Y * cam.cp + Z * cam.csp) * cam.s + cam.oy
+  ];
+}
+
+// warm points that glow once it is dark: pagoda doorway, steps, two path lamps
+const LAMPS = [
+  [12.55, 3.6, 15.0, 1.30],
+  [12.9, 1.4, 11.2, 0.70],
+  [10.4, 0.9, 5.0, 0.55],
+  [9.4, 0.9, 8.0, 0.55]
+];
+
+function glow(x, y, r, col, a){
+  if(a <= 0.004 || r <= 0.5) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, "rgba(" + col[0] + "," + col[1] + "," + col[2] + "," + a + ")");
+  g.addColorStop(1, "rgba(" + col[0] + "," + col[1] + "," + col[2] + ",0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+
+/* ------------------------------------------------------------------ render */
+function render(now, dt){
+  const m = moodAt(hour);
+
+  const ca = Math.cos(yaw), sa = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const scp = sa * cp, ccp = ca * cp;
+  const ssp = sa * sp, csp = ca * sp;
+  const s = Math.min(W, H) / 27, ox = W / 2, oy = H / 2;
+  cam.ca = ca; cam.sa = sa; cam.cp = cp; cam.sp = sp;
+  cam.ssp = ssp; cam.csp = csp; cam.s = s; cam.ox = ox; cam.oy = oy;
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, rgb(m.top));
+  sky.addColorStop(1, rgb(m.bot));
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // project the 8 corners of every cube
+  for(let i = 0; i < n; i++){
+    const j = i * 6, b = i * 12;
+    const X0 = pos[j], X1 = pos[j + 1], Y0 = pos[j + 2], Y1 = pos[j + 3],
+          Z0 = pos[j + 4], Z1 = pos[j + 5];
+    const xc0 = X0 * ca, xc1 = X1 * ca, zs0 = Z0 * sa, zs1 = Z1 * sa;
+    pts[b]     = xc0 - zs0; pts[b + 1] = xc1 - zs0;
+    pts[b + 2] = xc1 - zs1; pts[b + 3] = xc0 - zs1;
+    const xsp0 = X0 * ssp, xsp1 = X1 * ssp, ycp0 = -Y0 * cp, ycp1 = -Y1 * cp,
+          zsp0 = Z0 * csp, zsp1 = Z1 * csp;
+    pts[b + 4]  = xsp0 + ycp0 + zsp0; pts[b + 5]  = xsp1 + ycp0 + zsp0;
+    pts[b + 6]  = xsp1 + ycp0 + zsp1; pts[b + 7]  = xsp0 + ycp0 + zsp1;
+    pts[b + 8]  = xsp0 + ycp1 + zsp0; pts[b + 9]  = xsp1 + ycp1 + zsp0;
+    pts[b + 10] = xsp1 + ycp1 + zsp1; pts[b + 11] = xsp0 + ycp1 + zsp1;
+  }
+
+  // collect uncovered, camera-facing faces with a painter depth key
+  let fc = 0;
+  for(let i = 0; i < n; i++){
+    const mask = occ[i], cb = i * 15;
+    for(let f = 0; f < 5; f++){
+      if(mask & (1 << f)) continue;
+      if(NX[f] * scp + NY[f] * sp + NZ[f] * ccp <= 0) continue;
+      faceDepth[fc] = FC[cb + f * 3] * scp + FC[cb + f * 3 + 1] * sp + FC[cb + f * 3 + 2] * ccp;
+      faceIdx[fc] = i * 5 + f;
+      faceOrder[fc] = fc;
+      fc++;
+    }
+  }
+  faceOrder.length = fc;
+  faceOrder.sort(byFaceDepth);
+
+  for(let k = 0; k < fc; k++){
+    const q = faceIdx[faceOrder[k]], i = (q / 5) | 0, f = q % 5;
+    const b = i * 12;
+    const x0 = pts[b] * s + ox, x1 = pts[b + 1] * s + ox,
+          x2 = pts[b + 2] * s + ox, x3 = pts[b + 3] * s + ox;
+    const y0 = pts[b + 4] * s + oy, y1 = pts[b + 5] * s + oy,
+          y2 = pts[b + 6] * s + oy, y3 = pts[b + 7] * s + oy,
+          y4 = pts[b + 8] * s + oy, y5 = pts[b + 9] * s + oy,
+          y6 = pts[b + 10] * s + oy, y7 = pts[b + 11] * s + oy;
+    ctx.fillStyle = cols[i][f];
+    ctx.beginPath();
+    switch(f){
+      case 0: ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x2, y6); ctx.lineTo(x1, y5); break;
+      case 1: ctx.moveTo(x0, y0); ctx.lineTo(x3, y3); ctx.lineTo(x3, y7); ctx.lineTo(x0, y4); break;
+      case 2: ctx.moveTo(x2, y2); ctx.lineTo(x3, y3); ctx.lineTo(x3, y7); ctx.lineTo(x2, y6); break;
+      case 3: ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1, y5); ctx.lineTo(x0, y4); break;
+      default: ctx.moveTo(x0, y4); ctx.lineTo(x1, y5); ctx.lineTo(x2, y6); ctx.lineTo(x3, y7);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // time-of-day grade
+  if(m.ta > 0.002){
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgba(" + (m.tint[0] | 0) + "," + (m.tint[1] | 0) + "," + (m.tint[2] | 0) + "," + m.ta.toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  // weather grade: rain darkens and cools, snow lifts and softens
+  if(rainAmt > 0.01){
+    ctx.globalCompositeOperation = "multiply";
+    ctx.fillStyle = "rgba(96,116,138," + (0.22 * rainAmt).toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+  if(snowAmt > 0.01){
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(196,214,230," + (0.045 * snowAmt).toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  // stars (night, thinning out in rain and snow)
+  const starA = m.night * (1 - rainAmt * 0.85) * (1 - snowAmt * 0.55);
+  if(starA > 0.02){
+    ctx.globalCompositeOperation = "lighter";
+    for(let i = 0; i < stars.length; i++){
+      const st = stars[i];
+      const tw = 0.55 + 0.45 * Math.sin(now * 0.0011 + st.ph);
+      ctx.globalAlpha = starA * st.a * tw;
+      ctx.fillStyle = "#e8f0ff";
+      ctx.fillRect(st.x * W, st.y * H, st.r * DPR, st.r * DPR);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  // sun or moon halo
+  const elev = Math.sin(((hour - 6) / 24) * Math.PI * 2);   // 6h 0, 12h 1, 18h 0
+  const glowR = Math.min(W, H) * 0.42;
+  ctx.globalCompositeOperation = "lighter";
+  if(elev > 0){
+    const sx = (0.06 + ((hour - 6) / 12) * 0.88) * W;
+    const sy = H * (0.66 - elev * 0.46);
+    const warm = clamp(1 - Math.abs(hour - 12) / 7, 0, 1);
+    glow(sx, sy, glowR, [255, 232, 178], 0.20 + 0.22 * warm);
+    glow(sx, sy, Math.min(W, H) * 0.055, [255, 250, 232], 0.55);
+  } else {
+    const nightFrac = ((hour - 18 + 24) % 24) / 12;          // 0 at 18h, 1 at 6h
+    const me = Math.sin(clamp(nightFrac, 0, 1) * Math.PI);
+    if(me > 0.02){
+      const sx = (0.06 + clamp(nightFrac, 0, 1) * 0.88) * W;
+      const sy = H * (0.66 - me * 0.46);
+      glow(sx, sy, glowR * 0.7, [180, 200, 235], 0.10 + 0.14 * me);
+      glow(sx, sy, Math.min(W, H) * 0.030, [235, 242, 255], 0.42 * me);
+    }
+  }
+
+  // lanterns and fireflies
+  const nightA = m.night;
+  if(nightA > 0.10){
+    for(let i = 0; i < LAMPS.length; i++){
+      const L2 = LAMPS[i];
+      const p = project(L2[0], L2[1], L2[2]);
+      glow(p[0], p[1], s * 5.2 * L2[3], [255, 190, 112], 0.30 * nightA * L2[3]);
+    }
+    for(let i = 0; i < flies.length; i++){
+      const f = flies[i];
+      const fx = (f.x + Math.sin(now * 0.00021 * f.sp + f.ph) * 0.045) * W;
+      const fy = (f.y + Math.cos(now * 0.00017 * f.sp + f.ph * 1.7) * 0.03) * H;
+      const a = nightA * (0.35 + 0.35 * Math.sin(now * 0.0013 * f.sp + f.ph));
+      glow(fx, fy, s * 0.6, [255, 220, 130], a);
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // weather particles
+  if(rainAmt > 0.01){
+    ctx.strokeStyle = "rgba(186,206,226," + (0.34 * rainAmt).toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1, DPR * 0.9);
+    ctx.beginPath();
+    for(let i = 0; i < rain.length; i++){
+      const r = rain[i];
+      const x = r.x * W, y = r.y * H, len = r.l * H, k = r.k * 0.1 * W;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - k, y + len);
+    }
+    ctx.stroke();
+  }
+  if(snowAmt > 0.01){
+    ctx.fillStyle = "rgba(255,255,255," + (0.72 * snowAmt).toFixed(3) + ")";
+    for(let i = 0; i < snow.length; i++){
+      const f = snow[i];
+      ctx.beginPath();
+      ctx.arc(f.x * W, f.y * H, f.r * DPR, 0, 6.2832);
+      ctx.fill();
+    }
+  }
+
+  // vignette
+  if(vignette){ ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H); }
+}
+
+/* ------------------------------------------------------------------ update */
+function updateWeather(dt){
+  rainAmt += (rainTarget - rainAmt) * Math.min(1, dt * 1.4);
+  snowAmt += (snowTarget - snowAmt) * Math.min(1, dt * 1.4);
+  if(rainAmt < 0.002) rainAmt = rainTarget === 0 ? 0 : rainAmt;
+  if(snowAmt < 0.002) snowAmt = snowTarget === 0 ? 0 : snowAmt;
+
+  for(let i = 0; i < rain.length; i++){
+    const r = rain[i];
+    r.y += r.v * dt * 1.35;
+    r.x -= r.k * dt * 0.55;
+    if(r.y > 1.05){ r.y = -0.05; r.x = Math.random(); }
+    if(r.x < -0.05) r.x = 1.05;
+  }
+  for(let i = 0; i < snow.length; i++){
+    const f = snow[i];
+    f.y += f.v * dt;
+    f.x += Math.sin(f.ph + performance.now() * 0.0004) * f.amp * dt;
+    if(f.y > 1.05){ f.y = -0.05; f.x = Math.random(); }
+    if(f.x < -0.05) f.x = 1.05; else if(f.x > 1.05) f.x = -0.05;
+  }
+}
+
+/* ------------------------------------------------------------------- audio */
+let ac = null, master = null, rainGain = null, windGain = null, padGain = null;
+let soundOn = false, vol = 0.6, padVoices = [], chordIx = 0, nextChordAt = 0, chimeTimer = 0;
+let wet = null;
+
+const CHORDS = [
+  [73.42, 110.00, 146.83, 185.00, 277.18],   // D  A  D  F# C#
+  [61.74, 123.47, 185.00, 246.94, 293.66],   // B  B  F# B  D
+  [49.00,  98.00, 146.83, 196.00, 246.94],   // G  G  D  G  B
+  [55.00, 110.00, 164.81, 220.00, 329.63]    // A  A  E  A  E
+];
+
+function audioInit(){
+  if(ac) return true;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return false;
+  ac = new AC();
+
+  master = ac.createGain();
+  master.gain.value = 0;
+  master.connect(ac.destination);
+
+  // simple stereo-ish space for the chimes
+  const dl = ac.createDelay(1.0);
+  dl.delayTime.value = 0.42;
+  const fb = ac.createGain();
+  fb.gain.value = 0.32;
+  dl.connect(fb); fb.connect(dl); dl.connect(master);
+  wet = dl;
+
+  // pink-ish noise source shared by rain and wind
+  const nb = ac.createBuffer(1, Math.floor(ac.sampleRate * 3), ac.sampleRate);
+  const d = nb.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0;
+  for(let i = 0; i < d.length; i++){
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99765 * b0 + w * 0.0990460;
+    b1 = 0.96300 * b1 + w * 0.2965164;
+    b2 = 0.57000 * b2 + w * 1.0526913;
+    d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.19;
+  }
+
+  // rain
+  const rs = ac.createBufferSource(); rs.buffer = nb; rs.loop = true;
+  const rh = ac.createBiquadFilter(); rh.type = "highpass"; rh.frequency.value = 900;
+  const rl = ac.createBiquadFilter(); rl.type = "lowpass";  rl.frequency.value = 6200;
+  rainGain = ac.createGain(); rainGain.gain.value = 0;
+  rs.connect(rh); rh.connect(rl); rl.connect(rainGain); rainGain.connect(master);
+  rs.start();
+
+  // wind
+  const ws = ac.createBufferSource(); ws.buffer = nb; ws.loop = true;
+  const wf = ac.createBiquadFilter(); wf.type = "lowpass"; wf.frequency.value = 380; wf.Q.value = 0.7;
+  windGain = ac.createGain(); windGain.gain.value = 0.10;
+  ws.connect(wf); wf.connect(windGain); windGain.connect(master);
+  ws.start();
+  const lfo = ac.createOscillator(); lfo.frequency.value = 0.07;
+  const lfoG = ac.createGain(); lfoG.gain.value = 130;
+  lfo.connect(lfoG); lfoG.connect(wf.frequency); lfo.start();
+
+  // pad
+  const pf = ac.createBiquadFilter(); pf.type = "lowpass"; pf.frequency.value = 1100; pf.Q.value = 0.4;
+  padGain = ac.createGain(); padGain.gain.value = 0.5;
+  pf.connect(padGain); padGain.connect(master);
+  padVoices = [];
+  for(let i = 0; i < 5; i++){
+    const o = ac.createOscillator();
+    o.type = "sine";
+    o.frequency.value = CHORDS[0][i];
+    const g = ac.createGain();
+    g.gain.value = 0.055;
+    o.connect(g); g.connect(pf);
+    o.start();
+    padVoices.push(o);
+  }
+  nextChordAt = performance.now() + 17000;
+  return true;
+}
+
+function nextChord(){
+  if(!ac) return;
+  chordIx = (chordIx + 1) % CHORDS.length;
+  const ch = CHORDS[chordIx];
+  for(let i = 0; i < padVoices.length; i++){
+    padVoices[i].frequency.setTargetAtTime(ch[i], ac.currentTime, 2.5);
+  }
+}
+
+function chime(){
+  if(!soundOn || !ac) return;
+  const notes = [587.33, 659.25, 739.99, 880.00, 987.77];
+  const f = notes[Math.floor(Math.random() * notes.length)];
+  const t = ac.currentTime;
+  const o = ac.createOscillator(); o.type = "sine"; o.frequency.value = f;
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.055, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
+  o.connect(g); g.connect(master); g.connect(wet);
+  o.start(t); o.stop(t + 3.6);
+  chimeTimer = setTimeout(chime, 7000 + Math.random() * 11000);
+}
+
+function updateAudio(){
+  if(!ac) return;
+  const t = ac.currentTime;
+  rainGain.gain.setTargetAtTime(rainAmt * 0.22, t, 0.7);
+  windGain.gain.setTargetAtTime(0.09 + snowAmt * 0.07 + rainAmt * 0.05, t, 0.9);
+  if(performance.now() > nextChordAt){ nextChord(); nextChordAt = performance.now() + 17000 + Math.random() * 9000; }
+}
+
+/* ---------------------------------------------------------------------- UI */
+const ui = document.getElementById("ui");
+const hourInput = document.getElementById("hour");
+const clockEl = document.getElementById("clock");
+const cycleBtn = document.getElementById("cycle");
+const sndBtn = document.getElementById("snd");
+const volInput = document.getElementById("vol");
+const hint = document.getElementById("hint");
+const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
+
+function updateClock(){
+  const h = ((hour % 24) + 24) % 24;
+  const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+  clockEl.textContent = String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
+updateClock();
+
+let hideTimer = 0;
+function showUI(){
+  ui.classList.add("show");
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => { if(!ui.matches(":hover")) ui.classList.remove("show"); }, 4800);
+}
+addEventListener("pointermove", showUI, { passive: true });
+addEventListener("pointerdown", showUI, { passive: true });
+ui.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+ui.addEventListener("mouseleave", () => { hideTimer = setTimeout(() => ui.classList.remove("show"), 1600); });
+setTimeout(showUI, 700);
+
+hourInput.addEventListener("input", () => {
+  hour = parseFloat(hourInput.value);
+  cycleOn = false;
+  cycleBtn.setAttribute("aria-pressed", "false");
+  updateClock();
+});
+
+cycleBtn.addEventListener("click", () => {
+  cycleOn = !cycleOn;
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+});
+
+function setWeather(which){
+  rainTarget = which === "rain" ? 1 : 0;
+  snowTarget = which === "snow" ? 1 : 0;
+  for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === which));
+}
+for(const b of wxBtns) b.addEventListener("click", () => setWeather(b.dataset.wx));
+
+sndBtn.addEventListener("click", async () => {
+  if(!audioInit()) return;
+  try { await ac.resume(); } catch(e){}
+  soundOn = !soundOn;
+  sndBtn.setAttribute("aria-pressed", String(soundOn));
+  master.gain.setTargetAtTime(soundOn ? vol * 0.85 : 0, ac.currentTime, 0.5);
+  if(soundOn){ clearTimeout(chimeTimer); chimeTimer = setTimeout(chime, 2200); }
+  else clearTimeout(chimeTimer);
+});
+
+volInput.addEventListener("input", () => {
+  vol = parseFloat(volInput.value);
+  if(ac && soundOn) master.gain.setTargetAtTime(vol * 0.85, ac.currentTime, 0.2);
+});
+
+/* -------------------------------------------------------------------- loop */
+cv.addEventListener("pointerdown", e => {
+  dragging = true; lx = e.clientX; ly = e.clientY; vel = 0;
+  lastTouch = performance.now();
+  cv.setPointerCapture(e.pointerId);
+  cv.style.cursor = "grabbing";
+  hint.style.opacity = "0";
+});
+cv.addEventListener("pointermove", e => {
+  if(!dragging) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly;
+  lx = e.clientX; ly = e.clientY;
+  yaw += dx * 0.010;
+  vel = clamp(dx * 0.030, -1.6, 1.6);
+  pitch = clamp(pitch - dy * 0.006, 0.20, 1.15);
+  lastTouch = performance.now();
+});
+function endDrag(){ dragging = false; cv.style.cursor = "grab"; lastTouch = performance.now(); }
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+let last = performance.now();
+
+function tick(now){
+  const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+  last = now;
+
+  if(cycleOn){
+    hour = (hour + dt * (24 / 420)) % 24;      // full day in seven minutes
+    hourInput.value = hour.toFixed(2);
+    updateClock();
+  }
+
+  if(!dragging){
+    if(Math.abs(vel) > 0.001){
+      yaw += vel * dt;
+      vel *= Math.exp(-3.2 * dt);
+    } else if(!reduceMotion && now - lastTouch > 14000){
+      yaw += dt * 0.048;                        // slow idle drift
+    }
+  }
+
+  updateWeather(dt);
+  updateAudio();
+  render(now, dt);
+  requestAnimationFrame(tick);
+}
+
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
