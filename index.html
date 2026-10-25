@@ -100,7 +100,7 @@
 </div>
 
 <div id="places" hidden>
-  <button data-place="local">own time</button>
+  <button data-place="local">Own time</button>
   <button data-place="0">Vancouver</button>
   <button data-place="1">Toronto</button>
   <button data-place="2">Hawai&lsquo;i</button>
@@ -967,17 +967,20 @@ const PLACES = [
 let placeIx = null, placeTemp = null, cloudAmt = 0, wxAuto = true;
 let placeCode = null, fetchState = "idle", lastFetchAt = 0;
 
+/** The three manual states, expressed as WMO codes so both paths read the same. */
+function wxToCode(kind){ return kind === "rain" ? 61 : kind === "snow" ? 71 : 0; }
+
 function condLabel(code){
-  if(code === 0) return "clear sky";
-  if(code <= 2) return "partly cloudy";
-  if(code === 3) return "overcast";
-  if(code === 45 || code === 48) return "fog";
-  if(code >= 51 && code <= 57) return "drizzle";
-  if(code >= 61 && code <= 67) return "rain";
-  if(code >= 71 && code <= 77) return "snow";
-  if(code >= 80 && code <= 82) return "showers";
-  if(code === 85 || code === 86) return "snow showers";
-  if(code >= 95) return "thunderstorm";
+  if(code === 0) return "Clear sky";
+  if(code <= 2) return "Partly cloudy";
+  if(code === 3) return "Overcast";
+  if(code === 45 || code === 48) return "Fog";
+  if(code >= 51 && code <= 57) return "Drizzle";
+  if(code >= 61 && code <= 67) return "Rain";
+  if(code >= 71 && code <= 77) return "Snow";
+  if(code >= 80 && code <= 82) return "Showers";
+  if(code === 85 || code === 86) return "Snow showers";
+  if(code >= 95) return "Thunderstorm";
   return "—";
 }
 
@@ -1103,28 +1106,28 @@ function updateInfo(){
   const place = placeIx === null ? null : PLACES[placeIx];
   const realH = place ? localHour(place.tz) : ownHour();
 
-  infoPlace.textContent = place ? place.name : "own time";
+  infoPlace.textContent = place ? place.name : "Own time";
   infoClock.textContent = fmtHour(realH);
 
   if(place){
-    infoCond.textContent = !wxAuto ? currentWx
-      : fetchState === "loading" ? "loading…"
+    infoCond.textContent = !wxAuto ? condLabel(wxToCode(currentWx))
+      : fetchState === "loading" ? "Loading…"
       : placeCode === null ? "—" : condLabel(placeCode);
     infoTemp.textContent = placeTemp === null ? "" : Math.round(placeTemp) + "°C";
   }else{
-    infoCond.textContent = currentWx;
+    infoCond.textContent = condLabel(wxToCode(currentWx));
     infoTemp.textContent = "";
   }
 
   const age = lastFetchAt ? Math.round((Date.now() - lastFetchAt) / 60000) : null;
-  infoMeta.textContent = (!place || !wxAuto) ? "weather set by hand"
-    : fetchState === "error" ? "offline · last known"
-    : fetchState !== "ok" ? "fetching…"
-    : "open-meteo" + (age === null ? "" : " · " + (age < 1 ? "just now" : age + "m ago"));
+  infoMeta.textContent = (!place || !wxAuto) ? "Weather set by hand"
+    : fetchState === "error" ? "Offline · last known"
+    : fetchState !== "ok" ? "Fetching…"
+    : "Open-Meteo" + (age === null ? "" : " · " + (age < 1 ? "just now" : age + "m ago"));
 
   const differs = Math.abs(hour - realH) > 0.12;
   infoScene.hidden = !differs;
-  if(differs) infoScene.textContent = "scene " + fmtHour(hour) + (cycleOn ? " · cycling" : "");
+  if(differs) infoScene.textContent = "Scene " + fmtHour(hour) + (cycleOn ? " · cycling" : "");
 }
 
 function setInfoOpen(open){
