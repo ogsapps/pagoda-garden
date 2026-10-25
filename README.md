@@ -45,26 +45,23 @@ clock still works and the weather simply stays where it was.
   Everything runs through a compressor and a soft high shelf, and the default level is quiet
   (about -49 dBFS RMS at 18% volume) so it can sit in the background all day.
 
-### The city scenes
+### This is your garden
 
-Picking a city in `location` not only sets its clock and weather, it rebuilds the garden as
-that place. All six scenes share the plot, the path and the pagoda; what changes is the
-landmark, the ground and the trees. They are built once at startup (~6,000 voxels total) and
-switching is a reference swap — no per-frame cost.
+The voxel page is deliberately one scene: the pagoda garden, always the same. Picking a city in
+`location` still sets the garden's clock and pulls that city's real weather — the light and the
+sky change, the garden does not.
 
-| Scene | Landmark | Flavour |
-| --- | --- | --- |
-| Garden (default) | the pagoda on its platform | pond, lily pads, leafy trees |
-| Vancouver | an orca breaking the surface, cedar forest, mossy rocks | deep greens, grey stone |
-| Toronto | CN Tower with its pod and antenna, Rogers Centre dome | autumn maples, lake water along one edge |
-| Hawai'i | palms, black lava rock, hibiscus, a small volcanic cone | sand and grass, wide lagoon |
-| Hong Kong | a cluster of towers with lit windows, lantern posts | harbour water, temple pagoda |
-| Amsterdam | canal with two bridges and a boat, six row houses | brick path, tulip beds, stepped gables |
+The city views live in the pixel-art page at [`proto/pixel/`](https://stansz.github.io/pagoda-garden/proto/pixel/):
+six cities (Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam, Sydney) seen from outside, each
+with its own skyline and seasonal drift. Click the pagoda island there to **enter the garden**
+(this page), and a small `← back to the city` pill appears here when you arrive that way.
+The URL carries `?city=<id>` in both directions, so the return trip lands on the same city.
 
-Every scene is framed with the garden's camera (same centre, same scale) and uses the same
-pagoda colours, so the garden itself is pixel-identical in every city and only the skyline,
-the ground and the trees change. Landmarks are kept inside that height envelope — the CN
-Tower is capped just above the pagoda's spire so nothing shrinks or clips when you switch.
+## Prototypes
+
+Three style prototypes of the same brief live under [`proto/`](https://stansz.github.io/pagoda-garden/proto/)
+with a comparison page. The pixel one is the current favourite and is the one that gained the
+city scenes and the season logic.
 
 ## Notes on the rendering
 
