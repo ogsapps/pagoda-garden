@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Window — five cities, one pixel view</title>
+<title>Pixel garden — five cities, one view</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#070a0c}
   canvas{position:fixed;inset:0;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
@@ -108,9 +108,9 @@
 "use strict";
 
 /* =========================================================================
-   Window — a low-resolution framebuffer drawn like pixel art, seen through a
-   window pane.  Everything below paints into a ~480x270 art-pixel buffer using
-   flat rectangles, per-pixel ordered dithering (4x4 Bayer) and image blits.
+   Pixel garden — a low-resolution framebuffer drawn like pixel art, full bleed.
+   Everything below paints into a ~480x270 art-pixel buffer using flat
+   rectangles, per-pixel ordered dithering (4x4 Bayer) and image blits.
    No paths, no gradients: that keeps it honest pixel art and keeps the frame
    cheap enough to run at 60fps.
    ========================================================================= */
@@ -1238,48 +1238,24 @@ function paintWater(){
   waterCity = state.city;
 }
 
-/* ----------------------------------------------------------- window dressing */
+/* ----------------------------------------------------------- light dressing */
+// No window frame, no mullions: the pixel art runs edge to edge. All that is baked
+// on top is a soft bottom-weighted vignette so the UI bar has something to sit on.
 function buildFrame(){
   const c = makeCanvas(BW, BH), g = ctx2(c);
-  // vignette, baked as pixels so it stays soft under the pixel grid
-  // the card sits top-left, so there is no darkening up there: the shade only
-  // gathers along the bottom (where the bar floats) and the lower side edges
   const img = g.createImageData(BW, BH), d = img.data;
   for(let y = 0; y < BH; y++){
     const ny = y / BH;
-    const bottom = Math.pow(clamp((ny - 0.55) / 0.45, 0, 1), 1.9) * 0.34;
+    const bottom = Math.pow(clamp((ny - 0.55) / 0.45, 0, 1), 1.9) * 0.30;
     for(let x = 0; x < BW; x++){
       const side = Math.pow(clamp((Math.abs(x / BW - 0.5) - 0.40) / 0.10, 0, 1), 2) *
-                   clamp((ny - 0.30) / 0.70, 0, 1) * 0.12;
+                   clamp((ny - 0.30) / 0.70, 0, 1) * 0.10;
       const o = (y * BW + x) * 4;
       d[o] = 4; d[o + 1] = 6; d[o + 2] = 8;
       d[o + 3] = Math.round(clamp(bottom + side, 0, 1) * 255);
     }
   }
   g.putImageData(img, 0, 0);
-
-  const FR = Math.max(1, Math.round(BW / 300));            // frame thickness in art px
-  const MW = Math.max(2, Math.round(BW / 280));            // mullion width
-  const bar = "rgba(9,13,16,0.92)";
-  const mull = "rgba(9,13,16,0.66)", mullLit = "rgba(255,255,255,0.06)";
-  const sill = Math.max(4, Math.round(BH / 54));
-  const sy = BH - FR - sill;
-  R(g, 0, 0, BW, FR, bar);
-  R(g, 0, 0, FR, BH, bar);
-  R(g, BW - FR, 0, FR, BH, bar);
-  R(g, 0, 0, BW, 1, "rgba(255,255,255,0.05)");
-  R(g, 0, 0, 1, BH, "rgba(255,255,255,0.04)");
-  for(let i = 1; i <= 2; i++){
-    const mx = Math.round(BW * i / 3);
-    R(g, mx, FR, MW, sy - FR, mull);
-    R(g, mx, FR, 1, sy - FR, mullLit);
-  }
-  // sill: a stone lip, shadowed above and lit along its edge
-  R(g, 0, sy - 1, BW, 1, "rgba(0,0,0,0.26)");
-  R(g, 0, sy, BW, sill, "#222a30");
-  R(g, 0, sy, BW, 1, "#3d474e");
-  R(g, 0, sy + sill - 1, BW, 1, "#151b1f");
-  R(g, 0, BH - FR, BW, FR, "#0a0e10");
   return c;
 }
 
@@ -1745,12 +1721,11 @@ function drawFrame(now, dt){
   drawLights(now, m, offs);
   drawWeather(now, m);
   b.drawImage(frameCv, 0, 0);
-  if(sillCv) b.drawImage(sillCv, 0, 0);
 
   if(dctx){
     dctx.imageSmoothingEnabled = false;
-    if(bx !== 0 || by !== 0){
-      dctx.fillStyle = "#070a0c";                 // the wall the window sits in
+    if(bx > 0 || by > 0){                          // only if a rounding gap ever appears
+      dctx.fillStyle = "#070a0c";
       dctx.fillRect(0, 0, cv.width, cv.height);
     }
     dctx.drawImage(buf, 0, 0, BW, BH, bx, by, BW * px, BH * px);
@@ -2051,9 +2026,12 @@ function measure(){
   let p = Math.max(1, Math.round(Math.min(cssW / 480, cssH / 270) * dpr));
   let size = fit();
   while(size[0] * size[1] > 300000 && p < 32){ p++; size = fit(); }
-  allocate(size[0], size[1], p);
-  bx = Math.round((cv.width - size[0] * p) / 2);
-  by = Math.round((cv.height - size[1] * p) / 2);
+  // fill the viewport: pick the integer art-pixel scale that covers it, then centre-crop.
+  // (No letterbox, no window frame — the art runs edge to edge.)
+  const pc = Math.max(1, Math.ceil(cv.width / size[0]), Math.ceil(cv.height / size[1]));
+  allocate(size[0], size[1], pc);
+  bx = Math.round((cv.width - size[0] * pc) / 2);
+  by = Math.round((cv.height - size[1] * pc) / 2);
 }
 
 function boot(){

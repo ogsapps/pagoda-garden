@@ -97,3 +97,14 @@ Buffer size is capped at ~300k art pixels.
 3. **Dither with ImageData into a temp canvas, then blit.** Ordered-dither haze, mist bands and
    halos bake in milliseconds and render for one `drawImage` per frame — the whole atmospheric
    look without per-pixel work in the loop.
+
+## Update: window frame removed (review feedback)
+
+The fake window (border, two mullions, stone sill, sill dressing) is gone. The art now runs
+edge to edge:
+
+- `buildFrame()` bakes only a soft bottom-weighted vignette — no bars, no sill.
+- The sill dressing painter (`buildSill`) is no longer drawn.
+- `measure()` now **covers** the viewport with whole art pixels (`p = ceil(max(cvW/BW, cvH/BH))`)
+  and centre-crops the small overflow, instead of letterboxing onto a dark wall. On a 16:9
+  window the buffer already matches the viewport aspect, so there is effectively no crop.
