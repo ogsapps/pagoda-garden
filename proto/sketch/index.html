@@ -1,0 +1,2282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Pagoda Sketchbook — relax</title>
+<style>
+  :root{
+    --paper:#f5ecd8;
+    --ink:#3b2e23;
+    --ink-soft:#7b6854;
+    --edge:rgba(59,46,35,.30);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#e7ddc6}
+  body{font:13px/1.45 Georgia,"Iowan Old Style","Palatino Linotype",serif;color:var(--ink);
+       -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  #scene{position:fixed;inset:0;display:block;width:100%;height:100%}
+
+  /* ---- paper card, top-left --------------------------------------------- */
+  #info{position:fixed;top:16px;left:16px;z-index:6;min-width:178px;
+       max-width:min(290px,calc(100vw - 32px));
+       background:rgba(247,239,223,.92);border:1px solid var(--edge);border-radius:2px;
+       box-shadow:1px 2px 0 rgba(59,46,35,.09),0 9px 22px rgba(59,46,35,.10);
+       color:var(--ink);transform:rotate(-.28deg);}
+  #infoHead{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;
+       background:transparent;border:0;color:inherit;font:inherit;cursor:pointer;
+       text-align:left;border-radius:0}
+  #infoHead:hover{background:rgba(59,46,35,.05)}
+  #infoHead:focus-visible{outline:1.5px dashed rgba(59,46,35,.65);outline-offset:-3px}
+  #infoPlace{flex:auto;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;
+       white-space:nowrap;font-style:italic}
+  #infoClock{font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:.02em}
+  #infoRefresh{background:transparent;border:0;color:var(--ink-soft);font:inherit;line-height:1;
+       padding:1px 3px;margin:0;cursor:pointer;border-radius:6px;display:inline-flex;align-items:center}
+  #infoRefresh:hover:not(:disabled){color:var(--ink);background:rgba(59,46,35,.09)}
+  #infoRefresh:disabled{opacity:.30;cursor:default}
+  #infoRefresh:focus-visible{outline:1.5px dashed rgba(59,46,35,.65);outline-offset:1px}
+  #infoRefresh.spin{animation:info-spin .9s linear infinite}
+  @keyframes info-spin{to{transform:rotate(360deg)}}
+  #info .chev{font-size:9px;color:var(--ink-soft);transition:transform .18s}
+  #info:not(.closed) .chev{transform:rotate(180deg)}
+  #infoBody{padding:0 11px 9px;display:flex;flex-direction:column;gap:3px}
+  #info.closed #infoBody{display:none}
+  #infoBody .row{display:flex;gap:6px;align-items:baseline}
+  #infoBody .muted{color:var(--ink-soft);font-size:11.5px;line-height:1.35}
+  #infoScene{font-style:italic}
+
+  /* ---- bottom bar -------------------------------------------------------- */
+  #bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:6;
+       display:flex;align-items:center;gap:6px 14px;padding:7px 12px;
+       background:rgba(247,239,223,.92);border:1px solid var(--edge);border-radius:2px;
+       box-shadow:0 10px 22px rgba(59,46,35,.12);color:var(--ink);
+       width:max-content;max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
+  #bar .grp{display:flex;align-items:center;gap:6px}
+  #bar .lbl{color:var(--ink-soft);font-size:11.5px;font-style:italic}
+  #clock{font-variant-numeric:tabular-nums;min-width:40px;text-align:center}
+  #bar button{font:inherit;font-size:12.5px;color:var(--ink);background:transparent;
+       border:1px solid transparent;border-radius:2px;padding:3px 7px;cursor:pointer;
+       letter-spacing:.005em}
+  #bar button:hover{background:rgba(59,46,35,.07)}
+  #bar button:focus-visible{outline:1.5px dashed rgba(59,46,35,.65);outline-offset:1px}
+  #bar button[aria-pressed="true"]{text-decoration:underline;
+       text-decoration-style:wavy;text-decoration-thickness:1.4px;text-underline-offset:3px}
+  #bar #ownTime{color:var(--ink-soft);font-size:11.5px;font-style:italic;padding:3px 5px}
+  #cities{gap:2px}
+  #cities button{padding:3px 6px}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:14px;width:104px;
+       background:transparent;outline:none;cursor:pointer;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:rgba(59,46,35,.55)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;
+       margin-top:-4px;border-radius:50%;background:var(--ink);
+       box-shadow:0 0 0 3px rgba(59,46,35,.12)}
+  input[type=range]::-moz-range-track{height:1px;background:rgba(59,46,35,.55)}
+  input[type=range]::-moz-range-thumb{width:9px;height:9px;border:0;border-radius:50%;
+       background:var(--ink);box-shadow:0 0 0 3px rgba(59,46,35,.12)}
+  input[type=range]:focus-visible{outline:1.5px dashed rgba(59,46,35,.65);outline-offset:3px}
+
+  #hint{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);
+       color:var(--ink-soft);font:italic 12px/1.4 Georgia,serif;letter-spacing:.02em;
+       opacity:.75;pointer-events:none;transition:opacity 1.4s ease;z-index:5;
+       background:rgba(247,239,223,.7);padding:2px 9px;border-radius:2px}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001s !important;transition-duration:.001s !important}
+  }
+  @media (max-width:760px){
+    #bar{gap:5px 10px;padding:6px 9px;font-size:12px}
+    #bar .lbl{display:none}
+    input[type=range]{width:76px}
+    #hint{display:none}
+    #info{top:10px;left:10px;min-width:158px}
+  }
+  @media (max-width:430px){
+    #cities button{padding:3px 4px;font-size:11.5px}
+    #bar button{font-size:11.5px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" role="img" aria-label="A hand-drawn ink sketch of a pagoda garden and a city, on warm paper"></canvas>
+
+<div id="info">
+  <div id="infoHead" role="button" tabindex="0" aria-expanded="true" title="Place, weather and time">
+    <span id="infoPlace">Vancouver</span>
+    <span id="infoClock">--:--</span>
+    <button id="infoRefresh" aria-label="Refresh weather" title="Refresh weather now">&#8635;</button>
+    <span class="chev" aria-hidden="true">&#9660;</span>
+  </div>
+  <div id="infoBody">
+    <div class="row"><span id="infoCond">Clear sky</span><span id="infoTemp"></span></div>
+    <div class="row muted" id="infoMeta">own clock &middot; weather by hand</div>
+    <div class="row muted" id="infoInk"></div>
+    <div class="row muted" id="infoScene" hidden></div>
+  </div>
+</div>
+
+<div id="bar">
+  <div class="grp">
+    <label class="lbl" for="hour">time</label>
+    <input id="hour" type="range" min="0" max="24" step="0.05" value="16.6" aria-label="Time of day">
+    <span id="clock">16:36</span>
+    <button id="cycle" aria-pressed="true" title="Slow day and night cycle">cycle</button>
+  </div>
+  <div class="grp" id="cities">
+    <button data-city="0" aria-pressed="true">Vancouver</button>
+    <button data-city="1" aria-pressed="false">Toronto</button>
+    <button data-city="2" aria-pressed="false">Hawai&lsquo;i</button>
+    <button data-city="3" aria-pressed="false">Hong Kong</button>
+    <button data-city="4" aria-pressed="false">Amsterdam</button>
+    <button id="ownTime" aria-pressed="false" title="Use your own clock instead of the city's">own time</button>
+  </div>
+  <div class="grp">
+    <button data-wx="clear" aria-pressed="true">clear</button>
+    <button data-wx="rain" aria-pressed="false">rain</button>
+    <button data-wx="snow" aria-pressed="false">snow</button>
+  </div>
+</div>
+
+<div id="hint">a travel sketch &middot; the page redraws as the light changes</div>
+
+<script src="https://unpkg.com/roughjs@4.6.6/bundled/rough.js" onerror="window.__roughMissing = true"></script>
+<script>
+"use strict";
+
+/* ==========================================================================
+   A hand-drawn travel-sketchbook page.
+
+   One design space (1240 x 700 "paper units") is drawn with rough primitives
+   into a cached canvas per (city, mood bucket, weather, cloud bucket).  Every
+   frame only blits that page, adds the live light veil, the moving weather,
+   and the slowly drifting paper grain.
+   ========================================================================== */
+
+const cv = document.getElementById("scene");
+const ctx = cv.getContext("2d", { alpha: false });
+const isFirefox = /firefox/i.test(navigator.userAgent);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const DW = 1240, DH = 700;            // design ("paper unit") space
+const HZ = 430;                       // horizon / waterline
+let W = 2, H = 2, DPR = 1;            // backing store, device px
+let K = 1, OX = 0, OY = 0;            // design -> device: scale and offset
+
+const HAS_ROUGH = typeof rough !== "undefined" && rough && typeof rough.canvas === "function";
+if(!HAS_ROUGH) installRoughShim();
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+const css = (c, a) => "rgba(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + "," +
+                          (a === undefined ? 1 : Math.round(a * 1000) / 1000) + ")";
+
+function rng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ------------------------------------------------------------------ MOOD --
+   Copied from pagoda/relax.html so every prototype shares one sky.            */
+let hour = 16.6;
+let cycleOn = true;
+
+const MOOD = [
+  { h: 0.0,  top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 },
+  { h: 4.6,  top: [24, 30, 54],   bot: [64, 52, 80],    tint: [64, 56, 104],  ta: 0.62, night: 0.85 },
+  { h: 6.4,  top: [152, 172, 206],bot: [244, 208, 182], tint: [255, 190, 150],ta: 0.20, night: 0.18 },
+  { h: 9.0,  top: [178, 210, 232],bot: [238, 244, 246], tint: [255, 250, 240],ta: 0.05, night: 0.00 },
+  { h: 13.0, top: [188, 220, 240],bot: [240, 246, 244], tint: [255, 255, 255],ta: 0.00, night: 0.00 },
+  { h: 16.8, top: [200, 214, 236],bot: [251, 236, 212], tint: [255, 226, 186],ta: 0.12, night: 0.00 },
+  { h: 18.6, top: [112, 100, 138],bot: [240, 164, 122], tint: [255, 152, 104],ta: 0.34, night: 0.24 },
+  { h: 20.4, top: [22, 32, 54],   bot: [34, 46, 70],    tint: [36, 50, 100],  ta: 0.72, night: 0.90 },
+  { h: 24.0, top: [7, 11, 24],    bot: [17, 27, 45],    tint: [28, 40, 84],   ta: 0.76, night: 1.00 }
+];
+
+function moodAt(h){
+  h = ((h % 24) + 24) % 24;
+  let i = 0;
+  while(i < MOOD.length - 2 && h > MOOD[i + 1].h) i++;
+  const a = MOOD[i], b = MOOD[i + 1];
+  const t = (h - a.h) / Math.max(1e-6, b.h - a.h);
+  const m = (p, q) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t)];
+  return {
+    top: m(a.top, b.top), bot: m(a.bot, b.bot), tint: m(a.tint, b.tint),
+    ta: lerp(a.ta, b.ta, t), night: lerp(a.night, b.night, t)
+  };
+}
+
+/* Mood buckets: the page is only redrawn when the hour crosses a keyframe.
+   The live layer keeps a continuous tint on top, so the light still creeps. */
+const BUCKET_H = [0, 4.6, 6.4, 9.0, 13.0, 16.8, 18.6, 20.4, 24.0];
+function bucketOf(h){
+  h = ((h % 24) + 24) % 24;
+  let i = 0;
+  while(i < BUCKET_H.length - 2 && h >= BUCKET_H[i + 1]) i++;
+  return i;
+}
+function bucketHour(i){ return (BUCKET_H[i] + BUCKET_H[Math.min(i + 1, BUCKET_H.length - 1)]) / 2; }
+
+/* --------------------------------------------------------------- palette */
+const PAPER = [246, 238, 220];
+const PAPER_NIGHT = [186, 192, 205];
+const INK_WARM = [54, 42, 32];
+const INK_COOL = [33, 45, 64];
+
+function palette(h){
+  const m = moodAt(h);
+  const n = m.night;
+  const paper = mix(PAPER, PAPER_NIGHT, n * 0.9);
+  const ink = mix(INK_WARM, INK_COOL, Math.min(1, 0.10 + n * 0.95));
+  // A sketch is not a painting: even at midnight the sheet keeps most of its
+  // light, and the mood arrives as a blue veil rather than a black sky.
+  const skyT = mix(paper, m.top, 0.16 + 0.14 * n);
+  const skyB = mix(paper, m.bot, 0.30 + 0.22 * n);
+  const water = mix(paper, mix(m.top, m.bot, 0.55), 0.34 + 0.22 * n);
+  const land = mix(paper, [156, 152, 128], 0.26 + 0.10 * n);
+  const dim = mix([255, 255, 255], m.top, 0.03 + 0.30 * n);
+  return { m: m, n: n, paper: paper, ink: ink, skyT: skyT, skyB: skyB,
+           water: water, land: land, dim: dim };
+}
+
+/* ------------------------------------------------------ deterministic seeds
+   Every rough primitive gets an explicit seed, so the same page always draws
+   itself identically and a cached page never shimmers on return.             */
+let _seed = 1;
+function nextSeed(){
+  _seed = (_seed * 1103515245 + 12345) >>> 0;
+  return (_seed >>> 8) & 0xffffff;
+}
+
+/* ================================================================= paper
+   Ruled lines are a tiled pattern (one tile = two rules), fibre noise is a
+   small tile, so nothing full-screen is kept around between resizes.        */
+let grainTile = null, grainPat = null, rulePat = null, ruleSpacing = 34, ruleTileH = 1;
+
+function buildGrain(){
+  const T = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = T;
+  const g = c.getContext("2d");
+  const R = rng(99);
+  for(let i = 0; i < 2400; i++){
+    const x = R() * T, y = R() * T, r = 0.4 + R() * 1.1;
+    g.fillStyle = R() < 0.5 ? "rgba(74,56,38,0.055)" : "rgba(255,255,255,0.075)";
+    g.beginPath();
+    g.arc(x, y, r, 0, 6.2832);
+    g.fill();
+  }
+  // a few short fibres
+  g.strokeStyle = "rgba(90,72,52,0.05)";
+  g.lineWidth = 0.7;
+  for(let i = 0; i < 40; i++){
+    const x = R() * T, y = R() * T, a = R() * 3.14, l = 4 + R() * 12;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    g.stroke();
+  }
+  grainTile = c;
+  grainPat = ctx.createPattern(c, "repeat");
+}
+
+function buildRules(){
+  ruleSpacing = Math.max(16, Math.round(30 * DPR));
+  ruleTileH = ruleSpacing * 2;
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = ruleTileH;
+  const g = c.getContext("2d");
+  g.strokeStyle = "rgba(96,116,148,0.16)";
+  g.lineWidth = Math.max(1, DPR * 0.6);
+  for(let i = 0; i < 2; i++){
+    const y = Math.round(i * ruleSpacing) + 0.5;
+    g.beginPath();
+    g.moveTo(0, y);
+    g.lineTo(512, y);
+    g.stroke();
+  }
+  rulePat = ctx.createPattern(c, "repeat");
+}
+
+/* ============================================================ rough.js shim
+   If the CDN is unreachable (offline, blocked), plain canvas strokes keep the
+   page working: same primitive names, same option names, jittered by hand.   */
+function installRoughShim(){
+  const jitterFor = seed => rng((seed == null ? 1 : seed) * 2654435761);
+
+  function ellipsePts(cx, cy, w, h, n){
+    const pts = [];
+    n = n || 26;
+    for(let i = 0; i < n; i++){
+      const a = i / n * Math.PI * 2;
+      pts.push([cx + Math.cos(a) * w / 2, cy + Math.sin(a) * h / 2]);
+    }
+    return pts;
+  }
+  function curvePts(p, steps){
+    if(p.length < 3) return p.slice();
+    const out = [];
+    steps = steps || 8;
+    for(let i = 0; i < p.length - 1; i++){
+      const a = p[Math.max(0, i - 1)], b = p[i], c = p[i + 1], d = p[Math.min(p.length - 1, i + 2)];
+      for(let s = 0; s < steps; s++){
+        const t = s / steps, t2 = t * t, t3 = t2 * t;
+        const x = 0.5 * ((2 * b[0]) + (-a[0] + c[0]) * t +
+                  (2 * a[0] - 5 * b[0] + 4 * c[0] - d[0]) * t2 +
+                  (-a[0] + 3 * b[0] - 3 * c[0] + d[0]) * t3);
+        const y = 0.5 * ((2 * b[1]) + (-a[1] + c[1]) * t +
+                  (2 * a[1] - 5 * b[1] + 4 * c[1] - d[1]) * t2 +
+                  (-a[1] + 3 * b[1] - 3 * c[1] + d[1]) * t3);
+        out.push([x, y]);
+      }
+    }
+    out.push(p[p.length - 1].slice());
+    return out;
+  }
+  function pathPts(d){
+    const nums = String(d).match(/-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) || [];
+    const pts = [];
+    for(let i = 0; i + 1 < nums.length; i += 2) pts.push([+nums[i], +nums[i + 1]]);
+    return pts.length > 1 ? pts : [[0, 0], [0, 0]];
+  }
+
+  function tracePath(g, pts, closed){
+    g.beginPath();
+    g.moveTo(pts[0][0], pts[0][1]);
+    for(let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+    if(closed) g.closePath();
+  }
+
+  function bbox(pts){
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(const p of pts){
+      if(p[0] < x0) x0 = p[0];
+      if(p[0] > x1) x1 = p[0];
+      if(p[1] < y0) y0 = p[1];
+      if(p[1] > y1) y1 = p[1];
+    }
+    return { x0: x0, y0: y0, x1: x1, y1: y1 };
+  }
+
+  function hatchFill(g, pts, o, R){
+    const style = o.fillStyle || "hachure";
+    const gap = Math.max(2.5, o.hachureGap || 8);
+    const ang = (o.hachureAngle == null ? -41 : o.hachureAngle) * Math.PI / 180;
+    const b = bbox(pts);
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    const diag = Math.hypot(b.x1 - b.x0, b.y1 - b.y0) / 2 + gap * 2;
+
+    g.save();
+    tracePath(g, pts, true);
+    g.clip();
+    if(style === "solid"){
+      g.fillStyle = o.fill;
+      g.fillRect(b.x0 - 2, b.y0 - 2, b.x1 - b.x0 + 4, b.y1 - b.y0 + 4);
+      g.restore();
+      return;
+    }
+    g.translate(cx, cy);
+    g.rotate(ang);
+    g.strokeStyle = o.fill;
+    g.lineWidth = Math.max(0.6, o.fillWeight || 0.9);
+    g.lineCap = "round";
+
+    if(style === "dots"){
+      g.fillStyle = o.fill;
+      for(let y = -diag; y < diag; y += gap){
+        for(let x = -diag; x < diag; x += gap){
+          const r = Math.max(0.4, gap * 0.09);
+          g.beginPath();
+          g.arc(x + (R() - 0.5) * gap * 0.8, y + (R() - 0.5) * gap * 0.8, r, 0, 6.2832);
+          g.fill();
+        }
+      }
+    }else if(style === "zigzag"){
+      for(let y = -diag; y < diag; y += gap * 1.6){
+        g.beginPath();
+        let up = true;
+        for(let x = -diag; x < diag; x += gap * 0.9){
+          const yy = y + (up ? -gap * 0.45 : gap * 0.45) + (R() - 0.5) * 0.6;
+          if(x === -diag) g.moveTo(x, yy); else g.lineTo(x, yy);
+          up = !up;
+        }
+        g.stroke();
+      }
+    }else{
+      for(let y = -diag; y < diag; y += gap){
+        g.beginPath();
+        g.moveTo(-diag, y + (R() - 0.5) * gap * 0.4);
+        g.lineTo(diag, y + (R() - 0.5) * gap * 0.4);
+        g.stroke();
+      }
+      if(style === "cross-hatch"){
+        for(let x = -diag; x < diag; x += gap){
+          g.beginPath();
+          g.moveTo(x + (R() - 0.5) * gap * 0.4, -diag);
+          g.lineTo(x + (R() - 0.5) * gap * 0.4, diag);
+          g.stroke();
+        }
+      }
+    }
+    g.restore();
+  }
+
+  function strokeShape(g, pts, closed, o, R){
+    const col = o.stroke;
+    if(!col || col === "transparent") return;
+    const sw = o.strokeWidth || 1;
+    const roughN = o.roughness == null ? 1 : o.roughness;
+    const bow = o.bowing == null ? 1 : o.bowing;
+    g.strokeStyle = col;
+    g.lineWidth = sw;
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    for(let pass = 0; pass < 2; pass++){
+      const jp = pts.map(p => [p[0] + (R() - 0.5) * roughN * 1.3,
+                                p[1] + (R() - 0.5) * roughN * 1.3]);
+      g.beginPath();
+      g.moveTo(jp[0][0], jp[0][1]);
+      const n = jp.length;
+      const segs = closed ? n : n - 1;
+      for(let i = 0; i < segs; i++){
+        const a = jp[i], b = jp[(i + 1) % n];
+        const mx = (a[0] + b[0]) / 2 + (R() - 0.5) * roughN * bow;
+        const my = (a[1] + b[1]) / 2 + (R() - 0.5) * roughN * bow;
+        g.quadraticCurveTo(mx, my, b[0], b[1]);
+      }
+      if(!closed) g.lineTo(jp[n - 1][0], jp[n - 1][1]);
+      g.stroke();
+    }
+  }
+
+  window.rough = {
+    canvas: function(canvas){
+      const g = canvas.getContext("2d");
+      const draw = (pts, closed) => function(o){
+        o = o || {};
+        const R = jitterFor(o.seed);
+        if(o.fill) hatchFill(g, pts, o, R);
+        strokeShape(g, pts, closed, o, R);
+      };
+      return {
+        line: function(x1, y1, x2, y2, o){ draw([[x1, y1], [x2, y2]], false)(o); },
+        linearPath: function(pts, o){ draw(pts.slice(), false)(o); },
+        polygon: function(pts, o){ draw(pts.slice(), true)(o); },
+        rectangle: function(x, y, w, h, o){
+          draw([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], true)(o);
+        },
+        ellipse: function(cx, cy, w, h, o){ draw(ellipsePts(cx, cy, w, h, 26), true)(o); },
+        circle: function(cx, cy, d, o){ draw(ellipsePts(cx, cy, d, d, 26), true)(o); },
+        curve: function(pts, o){ draw(curvePts(pts), false)(o); },
+        path: function(d, o){ draw(pathPts(d), false)(o); }
+      };
+    }
+  };
+}
+
+/* ================================================================== the pen
+   Converts paper-unit drawing calls into device pixels (including stroke
+   widths, hachure gaps and roughness), and hides whether rough.js is real.   */
+function Pen(g, pal){
+  const S = x => OX + x * K;
+  const T = y => OY + y * K;
+  const map = a => a.map(p => [S(p[0]), T(p[1])]);
+  const scaleOpts = o => {
+    const q = {};
+    for(const k in o) q[k] = o[k];
+    if(typeof q.strokeWidth === "number") q.strokeWidth *= K;
+    if(typeof q.hachureGap === "number") q.hachureGap *= K;
+    if(typeof q.fillWeight === "number") q.fillWeight *= K;
+    if(typeof q.bowing === "number") q.bowing *= K;
+    if(typeof q.roughness === "number") q.roughness *= clamp(K, 0.6, 2.6);
+    return q;
+  };
+  const stroke = (w, a) => css(pal.ink, a === undefined ? 0.88 : a);
+
+  return {
+    k: K,
+    line(x1, y1, x2, y2, o){ g.line(S(x1), T(y1), S(x2), T(y2), scaleOpts(o)); },
+    path(pts, o){ g.linearPath(map(pts), scaleOpts(o)); },
+    poly(pts, o){ g.polygon(map(pts), scaleOpts(o)); },
+    rect(x, y, w, h, o){ g.rectangle(S(x), T(y), w * K, h * K, scaleOpts(o)); },
+    ellipse(x, y, w, h, o){ g.ellipse(S(x), T(y), w * K, h * K, scaleOpts(o)); },
+    circle(x, y, d, o){ g.circle(S(x), T(y), d * K, scaleOpts(o)); },
+    curve(pts, o){ g.curve(map(pts), scaleOpts(o)); },
+
+    /* a run of ink: options you can hand straight to any primitive above
+       (returned unscaled - the primitive applies the paper-unit scale) */
+    ink(w, a, extra){
+      const o = { stroke: stroke(w, a), strokeWidth: w === undefined ? 1.6 : w,
+                  roughness: 1.45, seed: nextSeed() };
+      if(extra) for(const k in extra) o[k] = extra[k];
+      return o;
+    },
+    /* a colour wash held inside a shape by hachure rules */
+    wash(pts, col, gap, angle, weight){
+      return this.poly(pts, { stroke: "transparent", fill: col, fillStyle: "hachure",
+        hachureGap: gap === undefined ? 9 : gap,
+        hachureAngle: angle === undefined ? -40 : angle,
+        fillWeight: weight === undefined ? 1.0 : weight, seed: nextSeed() });
+    },
+    /* zigzag wash - the water texture */
+    zig(pts, col, gap, angle){
+      return this.poly(pts, { stroke: "transparent", fill: col, fillStyle: "zigzag",
+        hachureGap: gap === undefined ? 11 : gap,
+        hachureAngle: angle === undefined ? -8 : angle,
+        fillWeight: 0.9, seed: nextSeed() });
+    },
+    fill(pts, col){
+      return this.poly(pts, { stroke: "transparent", fill: col, fillStyle: "solid",
+        seed: nextSeed() });
+    }
+  };
+}
+
+﻿const TAU = Math.PI * 2;
+
+/* ============================================================ shared scenery */
+/* The palette every page is allowed to use. Ink is the line; these are the
+   washes, and they carry the city's colour against the cream paper. */
+const ACC = {
+  vermilion: [178, 76, 52],
+  brick:     [168, 84, 60],
+  amber:     [206, 138, 62],
+  pine:      [58, 88, 68],
+  leaf:      [98, 126, 84],
+  teal:      [62, 116, 122],
+  rose:      [202, 104, 128],
+  sand:      [228, 204, 160],
+  ochre:     [202, 166, 106],
+  slate:     [104, 112, 126],
+  lake:      [120, 154, 176],
+  stone:     [142, 140, 130],
+  cream:     [244, 232, 206]
+};
+
+/* City colour, cooled a touch at night so every page still looks lit by one lamp. */
+function tint(base, pal, a){
+  return css(mix(base, pal.ink, pal.n * 0.20), a);
+}
+
+const BANK = [[-60, DH + 40], [-60, 622], [24, 598], [130, 580], [260, 568], [400, 560],
+              [540, 557], [690, 557], [840, 561], [980, 569], [1090, 583], [1180, 609],
+              [1300, 658], [1300, DH + 40]];
+
+function wavePts(x0, y, x1, amp, step, phase){
+  const pts = [];
+  const ph = phase || 0;
+  for(let x = x0; x <= x1 + 0.01; x += step){
+    pts.push([x, y + Math.sin(x * 0.021 + ph) * amp]);
+  }
+  return pts;
+}
+
+function ellipsePts(cx, cy, rx, ry, n){
+  const pts = [];
+  n = n || 22;
+  for(let i = 0; i < n; i++){
+    const a = i / n * TAU;
+    pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]);
+  }
+  return pts;
+}
+
+function horizonLine(P, pal, y, inkA){
+  P.path(wavePts(-60, y, DW + 60, 2.4, 46, 0.7), P.ink(2.1, inkA === undefined ? 0.8 : inkA));
+}
+
+/* Water: one flat colour field, a few wave lines, and two small zigzag patches.
+   A hachure or zigzag fill across the whole sheet turns into a field of rules
+   and is far too slow to draw, so texture only ever goes into small shapes. */
+function waterField(P, pal, y0, y1, col, rows){
+  P.fill([[-60, y0], [DW + 60, y0], [DW + 60, y1], [-60, y1]], css(col, 0.80));
+  rows = rows === undefined ? 4 : rows;
+  const span = y1 - y0;
+  for(let r = 0; r < rows; r++){
+    const y = y0 + span * (0.22 + r * 0.19);
+    P.path(wavePts(-40, y, DW + 40, 2.2 + r * 0.8, 30 + r * 4, r * 1.7),
+           P.ink(1.25 + (r % 2) * 0.3, 0.40 - r * 0.06));
+    P.path(wavePts(180, y + 9, DW - 60, 1.8 + r * 0.6, 34, r * 2.1 + 1), P.ink(1.1, 0.2));
+  }
+  const gap = clamp(span * 0.30, 26, 46);
+  P.zig([[110, y1 - gap * 2.3], [430, y1 - gap * 2.1], [430, y1 - gap * 1.4], [110, y1 - gap * 1.6]],
+        css(col, 0.6), 11, -8);
+  P.zig([[720, y1 - gap * 1.9], [1010, y1 - gap * 1.7], [1010, y1 - gap * 1.1], [720, y1 - gap * 1.3]],
+        css(col, 0.6), 11, -8);
+  const R = rng(y0 * 7 + 3);
+  for(let i = 0; i < 9; i++){
+    const x = R() * (DW - 120), y = y0 + span * (0.45 + R() * 0.4);
+    P.line(x, y, x + 34 + R() * 40, y, P.ink(1.15, 0.16 + R() * 0.12));
+  }
+}
+
+/* a small zigzag wash, for a reflection or a boat's backwater */
+function zigPatch(P, x, y, w, h, col, gap){
+  P.zig([[x, y], [x + w, y], [x + w, y + h], [x, y + h]],
+        css(col, 0.55), gap === undefined ? 9 : gap, -6);
+}
+
+function reflect(P, pal, x0, x1, y0, h, seed){
+  const R = rng(seed || 5);
+  for(let i = 0; i < 13; i++){
+    const x = lerp(x0, x1, R());
+    const y = y0 + R() * h;
+    const w = 16 + R() * 46;
+    P.line(x - w / 2, y, x + w / 2, y + (R() - 0.5) * 5, P.ink(1.05, 0.14 + R() * 0.15));
+  }
+}
+
+/* A ridge is a flat wash plus an ink edge. The shade is a few solid wedges on
+   the sunny side of each peak, not a hatch field - a hatched mountain reads as
+   woven cloth at this size. */
+function ridge(P, pal, pts, fill, inkA){
+  P.fill(pts, fill);
+  P.poly(pts, P.ink(2.0, inkA === undefined ? 0.82 : inkA));
+}
+
+function ridgeShadows(P, pal, peaks, baseY, a){
+  for(let i = 0; i < peaks.length; i++){
+    const p = peaks[i];
+    P.fill([[p[0], p[1]], [p[0] + 54, baseY], [p[0] + 8, baseY]], css(pal.ink, a));
+  }
+}
+
+function conifer(P, pal, x, baseY, h, w, inkA){
+  const a = inkA === undefined ? 0.85 : inkA;
+  P.line(x, baseY - h * 0.16, x, baseY + 2, P.ink(1.8, a * 0.9));
+  for(let t = 0; t < 3; t++){
+    const by = baseY - h * (0.09 + t * 0.20);
+    const tw = w * (1 - t * 0.25);
+    const th = h * 0.48;
+    const tri = [[x - tw / 2, by], [x, by - th], [x + tw / 2, by]];
+    P.fill(tri, tint(ACC.pine, pal, 0.55 + t * 0.10));
+    P.poly(tri, P.ink(1.3, a));
+    P.wash([[x + tw * 0.08, by], [x + tw * 0.36, by - th * 0.6], [x + tw * 0.5, by]],
+           css(pal.ink, 0.22), 5, 64, 0.8);
+  }
+}
+
+function treeBall(P, pal, x, baseY, r, canopy){
+  const cy = baseY - r * 0.95;
+  P.line(x, cy + r * 0.45, x, baseY, P.ink(2.4, 0.9));
+  P.line(x - 8, baseY - r * 0.10, x, cy + r * 0.4, P.ink(1.3, 0.5));
+  P.line(x + 8, baseY - r * 0.10, x, cy + r * 0.35, P.ink(1.3, 0.5));
+  const pts = [];
+  for(let i = 0; i < 22; i++){
+    const a = i / 22 * TAU;
+    const mod = 0.90 + 0.10 * Math.sin(a * 3 + 0.7) + 0.05 * Math.sin(a * 5.3);
+    pts.push([x + Math.cos(a) * r * mod, cy + Math.sin(a) * r * mod * 0.78]);
+  }
+  P.fill(pts, tint(canopy, pal, 0.44));
+  P.poly(pts, P.ink(1.8, 0.88));
+  for(let i = 0; i < 4; i++){
+    const a = -0.5 + i * 0.62;
+    P.line(x + Math.cos(a) * r * 0.34, cy + Math.sin(a) * r * 0.24,
+           x + Math.cos(a) * r * 0.78, cy + Math.sin(a) * r * 0.56, P.ink(1.15, 0.30));
+  }
+}
+
+function shrub(P, pal, x, y, r){
+  const pts = [];
+  for(let i = 0; i < 10; i++){
+    const a = i / 10 * TAU;
+    pts.push([x + Math.cos(a) * r, y - r * 0.65 + Math.sin(a) * r * 0.58]);
+  }
+  P.fill(pts, tint(ACC.leaf, pal, 0.42));
+  P.poly(pts, P.ink(1.4, 0.8));
+  P.line(x - r * 0.5, y - r * 0.7, x + r * 0.2, y - r * 1.0, P.ink(1.1, 0.3));
+}
+
+/* Sky furniture */
+function skyBodies(P, pal, g, ph){
+  const n = pal.n;
+  const dayT = (ph - 6) / 12;
+
+  if(dayT > -0.02 && dayT < 1.02){
+    const el = Math.sin(Math.PI * clamp(dayT, 0, 1));
+    const x = 130 + 980 * clamp(dayT, 0, 1);
+    const y = HZ - 10 - el * 330;
+    const r = 26;
+    const halo = g.createRadialGradient(OX + x * K, OY + y * K, r * K * 0.3,
+                                        OX + x * K, OY + y * K, r * K * 7);
+    halo.addColorStop(0, css(pal.m.tint, 0.34));
+    halo.addColorStop(0.42, css(pal.m.tint, 0.13));
+    halo.addColorStop(1, css(pal.m.tint, 0));
+    g.fillStyle = halo;
+    g.fillRect(OX + (x - r * 7) * K, OY + (y - r * 7) * K, r * 14 * K, r * 14 * K);
+    P.fill(ellipsePts(x, y, r, r, 16), css(mix(pal.m.tint, pal.paper, 0.35), 0.55));
+    P.circle(x, y, r * 2, P.ink(1.9, 0.72));
+    for(let i = 0; i < 9; i++){
+      const a = i / 9 * TAU + 0.28;
+      const l = 1.42 + (i % 2) * 0.30;
+      P.line(x + Math.cos(a) * r * 1.42, y + Math.sin(a) * r * 1.42,
+             x + Math.cos(a) * r * l, y + Math.sin(a) * r * l, P.ink(1.1, 0.42));
+    }
+  }
+
+  if(n > 0.12){
+    const nt = ph >= 18 ? (ph - 18) / 12 : (ph + 6) / 12;
+    const x = 150 + 940 * clamp(nt, 0, 1);
+    const y = HZ - 140 - Math.sin(Math.PI * clamp(nt, 0, 1)) * 240;
+    const r = 18;
+    const halo = g.createRadialGradient(OX + x * K, OY + y * K, r * K * 0.3,
+                                        OX + x * K, OY + y * K, r * K * 6);
+    halo.addColorStop(0, css([214, 222, 240], 0.34 * n));
+    halo.addColorStop(1, css([214, 222, 240], 0));
+    g.fillStyle = halo;
+    g.fillRect(OX + (x - r * 6) * K, OY + (y - r * 6) * K, r * 12 * K, r * 12 * K);
+    P.fill(ellipsePts(x, y, r, r, 16), css(mix(pal.paper, [226, 232, 246], 0.6), 0.5 * n));
+    P.circle(x, y, r * 2, P.ink(1.7, 0.62));
+    P.ellipse(x - r * 0.28, y - r * 0.18, r * 0.6, r * 0.44, P.ink(1.1, 0.34));
+    P.ellipse(x + r * 0.32, y + r * 0.32, r * 0.44, r * 0.32, P.ink(1.1, 0.3));
+  }
+}
+
+function stars(P, pal, count){
+  if(pal.n < 0.30) return;
+  const R = rng(31);
+  const a = (pal.n - 0.30) * 0.6;
+  for(let i = 0; i < count; i++){
+    const x = 30 + R() * (DW - 60);
+    const y = 24 + R() * (HZ - 190);
+    const s = 1.6 + R() * 2.6;
+    P.line(x - s, y, x + s, y, P.ink(1.0, a * (0.5 + R() * 0.5)));
+    P.line(x, y - s, x, y + s, P.ink(1.0, a * (0.4 + R() * 0.5)));
+  }
+}
+
+/* Clouds: one closed puffy silhouette per cloud, lifted off the sky with a
+   near-white wash, plus a pencilled base line. */
+function cloudPts(x0, y0, w, h){
+  const bumps = [[0.20, 0.62], [0.46, 1.0], [0.74, 0.66]];
+  const pts = [];
+  for(let i = 0; i <= 26; i++){
+    const u = i / 26;
+    let p = 0;
+    for(let b = 0; b < bumps.length; b++){
+      const d = (u - bumps[b][0]) / 0.24;
+      p = Math.max(p, bumps[b][1] * Math.exp(-d * d * 1.5));
+    }
+    pts.push([x0 + u * w, y0 + h * 0.30 - p * h]);
+  }
+  pts.push([x0 + w, y0 + h * 0.30], [x0, y0 + h * 0.30]);
+  return pts;
+}
+
+function clouds(P, pal, count, seed){
+  if(count <= 0) return;
+  const R = rng(seed || 17);
+  for(let i = 0; i < count; i++){
+    const x = 80 + R() * (DW - 400), y = 78 + R() * 180;
+    const w = 120 + R() * 130, h = 44 + R() * 30;
+    const pts = cloudPts(x, y, w, h);
+    P.fill(pts, css(mix([250, 246, 236], pal.paper, 0.25), 0.55));
+    P.poly(pts, P.ink(1.25, 0.28));
+  }
+}
+
+function birds(P, pal, n, seed){
+  const R = rng(seed || 7);
+  for(let i = 0; i < n; i++){
+    const x = 140 + R() * 860, y = 84 + R() * 170, s = 5 + R() * 4;
+    P.path([[x - s, y], [x - s * 0.45, y - s * 0.62], [x, y - s * 0.18]], P.ink(1.15, 0.40));
+    P.path([[x, y - s * 0.18], [x + s * 0.45, y - s * 0.62], [x + s, y]], P.ink(1.15, 0.40));
+  }
+}
+
+/* =========================================================== the five pages */
+
+/* --- Vancouver: coastal ridge, conifer forest, mist, a whale fluke --------- */
+function drawVancouver(P, pal, env){
+  const far = [[-70, HZ], [30, 350], [110, 316], [190, 342], [280, 302], [360, 332],
+               [452, 296], [536, 328], [626, 304], [716, 338], [806, 306], [900, 340],
+               [996, 318], [1090, 346], [1186, 324], [1300, HZ]];
+  ridge(P, pal, far, tint(ACC.slate, pal, 0.30), 0.30);
+  ridgeShadows(P, pal, [[280, 302], [452, 296], [626, 304], [806, 306], [996, 318]], HZ, 0.10);
+  for(let i = 0; i < 4; i++){
+    const x = 60 + i * 300, y = 350 + (i % 2) * 12;
+    P.path(wavePts(x, y, x + 150, 3, 24, i), P.ink(3.0, 0.10));
+  }
+  const near = [[-70, HZ], [44, 388], [132, 358], [226, 382], [318, 350], [410, 386],
+                [504, 360], [596, 388], [690, 362], [782, 392], [874, 366], [966, 394],
+                [1060, 372], [1152, 398], [1246, 376], [1300, HZ]];
+  ridge(P, pal, near, tint(ACC.pine, pal, 0.34), 0.56);
+  ridgeShadows(P, pal, [[318, 350], [504, 360], [690, 362], [874, 366], [1060, 372]], HZ, 0.14);
+  for(let i = 0; i < 3; i++){
+    const x = 150 + i * 330;
+    P.path([[x, 384], [x + 40, 364], [x + 88, 350], [x + 130, 342]], P.ink(1.2, 0.28));
+  }
+
+  const R = rng(23);
+  for(let i = 0; i < 12; i++){
+    conifer(P, pal, -20 + i * 42 + R() * 14, HZ - 6 + R() * 8, 44 + R() * 48, 18 + R() * 12, 0.86);
+  }
+  for(let i = 0; i < 8; i++){
+    conifer(P, pal, 930 + i * 42 + R() * 12, HZ - 4 + R() * 6, 36 + R() * 44, 16 + R() * 10, 0.76);
+  }
+
+  waterField(P, pal, HZ, DH, pal.water, 5);
+  whaleFluke(P, pal, 742, 494);
+}
+
+function whaleFluke(P, pal, x, y){
+  const left = [[x, y + 18], [x - 4, y + 3], [x - 29, y - 18], [x - 42, y - 32],
+                [x - 49, y - 23], [x - 45, y - 3], [x - 26, y + 11], [x - 9, y + 17]];
+  const right = [[x, y + 18], [x + 4, y + 3], [x + 29, y - 18], [x + 42, y - 32],
+                 [x + 49, y - 23], [x + 45, y - 3], [x + 26, y + 11], [x + 9, y + 17]];
+  for(const lobe of [left, right]){
+    P.fill(lobe, css(pal.ink, 0.60));
+    P.poly(lobe, P.ink(2.0, 0.9));
+  }
+  P.path(wavePts(x - 70, y + 18, x + 70, 2.2, 16, 1.2), P.ink(1.5, 0.55));
+  for(let i = 0; i < 3; i++){
+    P.ellipse(x + (i - 1) * 32, y + 21 + i * 7, 58 - i * 10, 12 - i * 2, P.ink(1.2, 0.28 - i * 0.05));
+  }
+  for(let i = 0; i < 9; i++){
+    const sx = x - 36 + i * 9, sy = y - 36 - (i % 3) * 6;
+    P.line(sx, sy, sx + 2, sy - 7, P.ink(1.1, 0.30));
+  }
+  reflect(P, pal, x - 60, x + 60, y + 22, 26, 41);
+}
+
+/* --- Toronto: CN Tower, skyline hatching, autumn amber, lake --------------- */
+function drawToronto(P, pal, env){
+  P.path(wavePts(-60, 424, DW + 60, 2, 40, 0.4), P.ink(1.2, 0.28));
+
+  const R = rng(41);
+  const blocks = [];
+  let x = 40;
+  while(x < DW - 44){
+    const w = 34 + R() * 30;
+    blocks.push([x, w, 46 + R() * 120]);
+    x += w + 6 + R() * 12;
+  }
+  for(const b of blocks){
+    const bx = b[0], bw = b[1];
+    const hh = (bx > 650 && bx < 760) ? b[2] * 0.5 : b[2];
+    const top = HZ - hh;
+    const body = [[bx, top], [bx + bw, top], [bx + bw, HZ], [bx, HZ]];
+    P.fill(body, tint(ACC.ochre, pal, 0.24));
+    P.fill([[bx + bw * 0.52, top], [bx + bw, top], [bx + bw, HZ], [bx + bw * 0.52, HZ]],
+           css(mix(pal.ink, [176, 152, 118], 0.45), 0.20));
+    P.poly(body, P.ink(1.5, 0.82));
+    const rows = Math.max(2, Math.floor(hh / 22));
+    for(let r = 0; r < rows; r++){
+      const wy = top + 12 + r * (hh - 16) / rows;
+      P.line(bx + 5, wy, bx + bw - 5, wy, P.ink(1.0, 0.24));
+    }
+    if(env.wx === "snow"){
+      P.line(bx + 1, top - 2, bx + bw - 1, top - 2,
+             { stroke: "rgba(253,253,255,0.92)", strokeWidth: 3.2, roughness: 1.0, seed: nextSeed() });
+    }
+  }
+
+  // the dome down by the lake
+  const dome = [];
+  for(let i = 0; i <= 10; i++){
+    const t = i / 10;
+    dome.push([520 - 66 * Math.cos(Math.PI * t), HZ - 32 * Math.sin(Math.PI * t)]);
+  }
+  P.curve(dome, P.ink(1.7, 0.8));
+  P.fill(dome.concat([[586, HZ], [454, HZ]]), tint(ACC.amber, pal, 0.28));
+
+  // CN Tower
+  const cx = 700;
+  P.line(cx - 26, HZ, cx - 6, 170, P.ink(2.2, 0.9));
+  P.line(cx + 26, HZ, cx + 6, 170, P.ink(2.2, 0.9));
+  P.line(cx - 6, 170, cx - 4, 100, P.ink(1.8, 0.85));
+  P.line(cx + 6, 170, cx + 4, 100, P.ink(1.8, 0.85));
+  const pod = [[cx - 36, 168], [cx - 24, 148], [cx + 24, 148], [cx + 36, 168],
+               [cx + 20, 178], [cx - 20, 178]];
+  P.fill(pod, tint(ACC.stone, pal, 0.35));
+  P.poly(pod, P.ink(1.9, 0.9));
+  P.wash([[cx - 36, 168], [cx - 24, 148], [cx - 6, 148], [cx - 11, 178]], css(pal.ink, 0.24), 5, -34);
+  P.ellipse(cx, 144, 44, 12, P.ink(1.5, 0.75));
+  P.line(cx, 144, cx, 56, P.ink(1.8, 0.85));
+  P.line(cx - 7, 86, cx + 7, 86, P.ink(1.2, 0.6));
+  P.line(cx - 4, 70, cx + 4, 70, P.ink(1.2, 0.6));
+  P.circle(cx, 54, 8, P.ink(1.4, 0.75));
+  env.lights.push([cx, 158, 30, 1, "beacon"]);
+  if(env.wx === "snow"){
+    P.line(cx - 24, 147, cx + 24, 147,
+           { stroke: "rgba(253,253,255,0.95)", strokeWidth: 3.4, roughness: 1.0, seed: nextSeed() });
+  }
+
+  waterField(P, pal, HZ, DH, mix(pal.water, ACC.lake, 0.35), 4);
+  reflect(P, pal, 470, 900, HZ + 6, 46, 9);
+  /* autumn: a few leaves already down on the water */
+  const R2 = rng(63);
+  for(let i = 0; i < 5; i++){
+    const lx = 420 + R2() * 470, ly = HZ + 30 + R2() * 60;
+    mapleLeaf(P, pal, lx, ly, 7 + R2() * 4, R2() * TAU, 0.55);
+  }
+}
+
+function mapleLeaf(P, pal, x, y, s, rot, a){
+  const local = [[0, -1.15], [0.34, -0.60], [0.88, -0.40], [0.44, 0.04], [0.60, 0.52],
+                 [0, 0.24], [-0.60, 0.52], [-0.44, 0.04], [-0.88, -0.40], [-0.34, -0.60]];
+  const ca = Math.cos(rot), sa = Math.sin(rot);
+  const pts = local.map(p => [x + (p[0] * ca - p[1] * sa) * s, y + (p[0] * sa + p[1] * ca) * s]);
+  P.fill(pts, tint(ACC.amber, pal, a));
+  P.poly(pts, P.ink(1.1, 0.55));
+  P.line(x, y + s * 0.2, x + Math.sin(rot) * s * 1.5 * -1, y + Math.cos(rot) * s * 1.5, P.ink(1.0, 0.45));
+}
+
+/* --- Hawai'i: Diamond Head, palms, lagoon, hibiscus ------------------------- */
+function drawHawaii(P, pal, env){
+  P.path(wavePts(-60, 414, DW + 60, 1.6, 52, 0.3), P.ink(1.2, 0.22));
+
+  const dh = [[-60, HZ], [30, 408], [96, 378], [150, 348], [196, 322], [232, 302],
+              [262, 288], [286, 279], [302, 281], [312, 271], [330, 271], [340, 281],
+              [356, 279], [386, 275], [416, 281], [444, 289], [474, 301], [506, 321],
+              [536, 347], [566, 379], [600, HZ]];
+  P.fill(dh, tint([202, 178, 146], pal, 0.52));
+  P.poly(dh, P.ink(2.1, 0.9));
+  // the far flank in shade, and the crater lip
+  P.fill([[386, 275], [416, 281], [444, 289], [474, 301], [506, 321], [536, 347],
+          [566, 379], [600, HZ], [520, HZ]], css(pal.ink, 0.16));
+  P.wash([[300, 288], [352, 284], [404, 292], [452, 306]], css(pal.ink, 0.16), 6, -28);
+  P.path([[96, 378], [180, 336], [262, 296], [330, 284]], P.ink(1.2, 0.32));
+  P.path([[150, 412], [240, 364], [326, 320], [400, 296]], P.ink(1.1, 0.26));
+  P.path([[40, 420], [140, 372], [220, 340]], P.ink(1.1, 0.22));
+  P.line(308, 272, 344, 272,
+         { stroke: css(pal.ink, 0.5), strokeWidth: 1.6, roughness: 1.0, seed: nextSeed() });
+
+  waterField(P, pal, HZ, DH, mix(pal.water, [132, 186, 182], 0.55), 4);
+  reflect(P, pal, 280, 700, HZ + 8, 34, 12);
+
+  palm(P, pal, 726, HZ - 2, 150, 0.10, 3);
+  palm(P, pal, 818, HZ + 4, 172, -0.08, 4);
+  palm(P, pal, 900, HZ - 4, 134, 0.06, 5);
+}
+
+function palm(P, pal, x, baseY, h, lean, seed){
+  const R = rng(seed);
+  const topX = x + lean * h, topY = baseY - h;
+  const trunk = [];
+  for(let i = 0; i <= 10; i++){
+    const t = i / 10;
+    trunk.push([lerp(x, topX, t) + Math.sin(t * Math.PI) * h * 0.05 * (lean >= 0 ? 1 : -1),
+                lerp(baseY, topY, t)]);
+  }
+  P.curve(trunk, P.ink(3.4, 0.9));
+  const rings = [2, 4, 6, 8];
+  for(const ix of rings){
+    const p = trunk[ix];
+    P.line(p[0] - 5, p[1] + 2, p[0] + 5, p[1] - 2, P.ink(1.2, 0.45));
+  }
+  for(let f = 0; f < 7; f++){
+    const a = -Math.PI * 0.94 + f * (Math.PI * 0.88 / 6);
+    const len = h * 0.62 * (0.80 + R() * 0.34);
+    const droop = len * 0.44;
+    const fr = [];
+    for(let s = 0; s <= 5; s++){
+      const t = s / 5, rr = len * t;
+      fr.push([topX + Math.cos(a) * rr, topY + Math.sin(a) * rr * 0.52 + t * t * droop]);
+    }
+    P.curve(fr, P.ink(1.9, 0.8));
+    for(let s = 1; s <= 4; s++){
+      const q = fr[s], ex = 5 + s * 1.6, ey = 4 + s * 2.2;
+      P.line(q[0], q[1], q[0] - ex, q[1] + ey, P.ink(1.0, 0.42));
+      P.line(q[0], q[1], q[0] + ex, q[1] + ey, P.ink(1.0, 0.42));
+    }
+  }
+  P.circle(topX, topY, 11, P.ink(1.4, 0.7));
+}
+
+function hibiscus(P, pal, x, y, r){
+  for(let i = 0; i < 5; i++){
+    const a = i / 5 * TAU - Math.PI / 2;
+    const px = x + Math.cos(a) * r * 0.52, py = y + Math.sin(a) * r * 0.52;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const pts = ellipsePts(0, 0, r * 0.62, r * 0.44, 12).map(p => [
+      px + p[0] * ca - p[1] * sa, py + p[0] * sa + p[1] * ca
+    ]);
+    P.fill(pts, tint([226, 118, 148], pal, 0.5));
+    P.poly(pts, P.ink(1.35, 0.72));
+  }
+  P.circle(x, y, r * 0.42, P.ink(1.3, 0.72));
+  P.line(x, y, x + r * 0.26, y - r * 0.74, P.ink(1.2, 0.65));
+  for(let i = 0; i < 3; i++) P.circle(x + r * 0.26, y - r * 0.74 - i * 4, 3.4, P.ink(1.0, 0.6));
+}
+
+/* --- Hong Kong: dense towers with stepped crowns, harbour, junk boat ------- */
+function drawHongKong(P, pal, env){
+  const R = rng(53);
+  let x = 22;
+  let i = 0;
+  while(x < DW - 28){
+    const w = 36 + R() * 30;
+    const h = 92 + R() * 208;
+    const top = HZ - h;
+    const glass = i % 3 === 0;
+    const body = [[x, top], [x + w, top], [x + w, HZ], [x, HZ]];
+    P.fill(body, glass ? tint(ACC.teal, pal, 0.34) : tint([190, 178, 160], pal, 0.30));
+    P.fill([[x + w * 0.54, top], [x + w, top], [x + w, HZ], [x + w * 0.54, HZ]],
+           css(mix(pal.ink, [120, 126, 132], 0.3), 0.34));
+    P.poly(body, P.ink(1.5, 0.84));
+    const steps = 2 + Math.round(R());
+    let sw = w * 0.74, sy = top;
+    for(let s = 0; s < steps; s++){
+      const sh = 7 + R() * 7;
+      P.fill([[x + (w - sw) / 2, sy - sh], [x + (w + sw) / 2, sy - sh],
+              [x + (w + sw) / 2, sy], [x + (w - sw) / 2, sy]],
+             glass ? tint(ACC.teal, pal, 0.3) : tint([186, 176, 160], pal, 0.26));
+      P.rect(x + (w - sw) / 2, sy - sh, sw, sh, P.ink(1.3, 0.8));
+      sy -= sh;
+      sw *= 0.62;
+    }
+    const rows = Math.min(8, Math.max(3, Math.floor(h / 26)));
+    for(let r = 0; r < rows; r++){
+      const wy = top + 18 + r * (h - 28) / rows;
+      P.line(x + 5, wy, x + w - 5, wy, P.ink(1.0, 0.2));
+    }
+    if(env.wx === "snow"){
+      P.line(x + 1, top - 2, x + w - 1, top - 2,
+             { stroke: "rgba(252,252,255,0.9)", strokeWidth: 3, roughness: 1.0, seed: nextSeed() });
+    }
+    x += w + 4 + R() * 10;
+    i++;
+  }
+
+  for(const nx of [118, 322, 716, 1016]){
+    const ny = 240 + R() * 120;
+    P.fill([[nx, ny], [nx + 10, ny], [nx + 10, ny + 46], [nx, ny + 46]],
+           tint([212, 72, 54], pal, 0.55));
+    P.rect(nx, ny, 10, 46, P.ink(1.2, 0.65));
+    for(let k = 0; k < 4; k++){
+      P.line(nx + 2, ny + 6 + k * 10, nx + 8, ny + 6 + k * 10, P.ink(1.0, 0.45));
+    }
+    env.lights.push([nx + 5, ny + 24, 22, 1, "neon"]);
+  }
+  for(const L of [[624, 300], [656, 322], [688, 344]]){
+    P.line(L[0], L[1] - 46, L[0], L[1] - 10, P.ink(1.1, 0.4));
+    lanternBody(P, pal, L[0], L[1], 11, 22);
+    env.lights.push([L[0], L[1], 30, 1, "lantern"]);
+  }
+
+  waterField(P, pal, HZ, DH, mix(pal.water, [86, 128, 134], 0.45), 5);
+  junkBoat(P, pal, 762, 476);
+}
+
+/* a paper lantern: an eight-sided body with ribs, warm inside */
+function lanternBody(P, pal, cx, cy, w, h){
+  const pts = [[cx - w * 0.5, cy - h * 0.12], [cx - w * 0.3, cy - h * 0.46], [cx, cy - h * 0.52],
+               [cx + w * 0.3, cy - h * 0.46], [cx + w * 0.5, cy - h * 0.12],
+               [cx + w * 0.34, cy + h * 0.42], [cx, cy + h * 0.5], [cx - w * 0.34, cy + h * 0.42]];
+  P.fill(pts, tint([206, 68, 48], pal, 0.70));
+  P.poly(pts, P.ink(1.4, 0.8));
+  P.line(cx, cy - h * 0.46, cx, cy + h * 0.44, P.ink(1.1, 0.42));
+  P.line(cx - w * 0.44, cy - h * 0.06, cx + w * 0.44, cy - h * 0.10, P.ink(1.0, 0.34));
+}
+
+function junkBoat(P, pal, x, y){
+  P.curve([[x - 92, y + 12], [x - 56, y + 30], [x + 18, y + 36], [x + 72, y + 27], [x + 100, y + 8]],
+          P.ink(2.1, 0.9));
+  P.fill([[x - 88, y + 8], [x - 20, y + 20], [x + 70, y + 18], [x + 96, y + 6],
+          [x + 72, y + 27], [x + 18, y + 36], [x - 56, y + 30]],
+         tint([120, 92, 66], pal, 0.45));
+  P.curve([[x - 88, y + 6], [x - 26, y + 16], [x + 42, y + 18], [x + 98, y + 6]], P.ink(1.7, 0.8));
+  const sail = [[x - 34, y - 10], [x - 6, y - 92], [x + 42, y - 92], [x + 52, y - 10]];
+  P.fill(sail, tint([214, 198, 166], pal, 0.62));
+  P.wash(sail, css(pal.ink, 0.10), 9, -12);
+  P.poly(sail, P.ink(1.8, 0.85));
+  for(let i = 1; i < 6; i++){
+    const yy = lerp(y - 92, y - 10, i / 6);
+    P.line(x - 30 + i * 1.6, yy, x + 48 - i * 1.4, yy - 2, P.ink(1.1, 0.48));
+  }
+  P.line(x + 2, y - 100, x + 2, y + 26, P.ink(1.8, 0.8));
+  P.line(x - 58, y + 10, x + 2, y - 100, P.ink(1.0, 0.4));
+  P.circle(x - 70, y - 4, 11, P.ink(1.2, 0.65));
+  reflect(P, pal, x - 80, x + 90, y + 26, 28, 23);
+}
+
+/* --- Amsterdam: narrow gabled houses with gaps, canal, bridge, tulips ------ */
+function gablePts(x, w, t, type){
+  if(type === 0){                                  // step gable
+    const sW = w * 0.15, sH = 10, p = [[x, t]];
+    for(let i = 1; i <= 3; i++) p.push([x + i * sW, t - i * sH]);
+    p.push([x + w / 2, t - 4.2 * sH]);
+    for(let i = 3; i >= 1; i--) p.push([x + w - i * sW, t - i * sH]);
+    p.push([x + w, t]);
+    return p;
+  }
+  if(type === 1){                                  // bell gable
+    const p = [[x, t]];
+    for(let i = 0; i <= 8; i++){
+      const u = i / 8;
+      p.push([x + w * u, t - 28 * Math.sin(u * Math.PI) * (1 - 0.15 * Math.cos(u * Math.PI))]);
+    }
+    p.push([x + w, t]);
+    return p;
+  }
+  if(type === 2){                                  // neck gable
+    return [[x, t], [x, t - 11], [x + w * 0.30, t - 11], [x + w * 0.30, t - 31],
+            [x + w * 0.40, t - 39], [x + w / 2, t - 41], [x + w * 0.60, t - 39],
+            [x + w * 0.70, t - 31], [x + w * 0.70, t - 11], [x + w, t - 11], [x + w, t]];
+  }
+  return [[x, t], [x + w / 2, t - 27], [x + w, t]];   // spout gable
+}
+
+function drawAmsterdam(P, pal, env){
+  const R = rng(67);
+  const houses = [];
+  let x = 42;
+  while(x < DW - 74){
+    const w = 50 + R() * 20;                    // narrow, tall, Dutch
+    houses.push([x, w, 112 + R() * 100, Math.floor(R() * 4)]);
+    x += w + 16 + R() * 15;                     // the gaps: paper shows through
+  }
+  for(const hs of houses){
+    const hx = hs[0], hw = hs[1], hh = hs[2], type = hs[3];
+    const top = HZ - hh;
+    const body = [[hx, top], [hx + hw, top], [hx + hw, HZ], [hx, HZ]];
+    P.fill(body, tint(type === 0 ? ACC.brick : type === 1 ? [176, 108, 74] : ACC.ochre, pal, 0.34));
+    // brick courses, faint
+    for(let i = 1; i < 6; i++){
+      const y = top + hh * i / 6;
+      P.line(hx + 2, y, hx + hw - 2, y, P.ink(0.9, 0.15));
+    }
+    P.poly(body, P.ink(1.6, 0.85));
+    // gable, with a cream edge and a hoisting beam
+    const gable = gablePts(hx, hw, top, type);
+    P.fill(gable, tint(hw > 64 ? ACC.brick : [176, 108, 74], pal, 0.32));
+    P.poly(gable, P.ink(1.7, 0.88));
+    const peakY = top - (type === 1 ? 26 : type === 2 ? 40 : 30);
+    P.line(hx + hw / 2, peakY + 4, hx + hw / 2, peakY - 12, P.ink(1.3, 0.6));
+    // white window frames with dark panes, some lit
+    const cols = hw > 62 ? 2 : 1;
+    const rows = Math.max(2, Math.floor((hh - 24) / 40));
+    for(let c = 0; c < cols; c++){
+      for(let r = 0; r < rows; r++){
+        const wx = hx + (hw - (cols * 20 + (cols - 1) * 12)) / 2 + c * 32;
+        const wy = top + 16 + r * 38;
+        P.fill([[wx, wy], [wx + 20, wy], [wx + 20, wy + 22], [wx, wy + 22]],
+               css([250, 245, 232], 0.55));
+        P.rect(wx, wy, 20, 22, P.ink(1.2, 0.62));
+        const lit = pal.n > 0.2 && R() < 0.5;
+        P.fill([[wx + 5, wy + 5], [wx + 15, wy + 5], [wx + 15, wy + 17], [wx + 5, wy + 17]],
+               lit ? css([244, 196, 116], 0.85) : css(pal.ink, 0.30));
+        if(lit) env.lights.push([wx + 10, wy + 11, 15, 1, "window"]);
+      }
+    }
+    P.rect(hx + hw / 2 - 9, HZ - 26, 18, 26, P.ink(1.5, 0.7));
+    if(env.wx === "snow"){
+      P.line(hx - 1, top - 2, hx + hw + 1, top - 2,
+             { stroke: "rgba(253,253,255,0.92)", strokeWidth: 3.2, roughness: 1.0, seed: nextSeed() });
+    }
+  }
+
+  waterField(P, pal, HZ, DH, mix(pal.water, [100, 136, 118], 0.45), 5);
+
+  // a low humped bridge on the left bank, over the water
+  const br = [], br2 = [];
+  for(let i = 0; i <= 12; i++){
+    const u = i / 12;
+    const px = -40 + 344 * u, py = 512 + 24 - Math.sin(u * Math.PI) * 26;
+    br.push([px, py]);
+    br2.push([px, py - 13]);
+  }
+  P.fill(br.concat(br2.slice().reverse()), tint(ACC.stone, pal, 0.45));
+  P.path(br, P.ink(2.2, 0.88));
+  P.path(br2, P.ink(1.6, 0.75));
+  for(let i = 0; i <= 12; i += 2) P.line(br[i][0], br[i][1], br2[i][0], br2[i][1], P.ink(1.1, 0.5));
+  for(const lx of [30, 190]){
+    const i = clamp(Math.round((lx + 40) / 344 * 12), 0, 12);
+    P.line(lx, br2[i][1], lx, br2[i][1] - 18, P.ink(1.1, 0.55));
+    P.circle(lx, br2[i][1] - 22, 9, P.ink(1.2, 0.6));
+  }
+  P.path([[20, 520], [96, 508], [170, 504], [246, 512]], P.ink(1.3, 0.35));
+  reflect(P, pal, 20, 260, 540, 16, 51);
+
+  canalBoat(P, pal, 726, 492);
+}
+
+function canalBoat(P, pal, x, y){
+  P.curve([[x - 104, y], [x - 56, y + 15], [x + 38, y + 15], [x + 104, y - 2]], P.ink(2.1, 0.9));
+  P.fill([[x - 102, y - 12], [x - 96, y - 2], [x - 50, y + 3], [x + 40, y + 3],
+          [x + 100, y - 12], [x + 104, y - 2], [x + 38, y + 15], [x - 56, y + 15]],
+         tint([104, 82, 62], pal, 0.42));
+  P.curve([[x - 102, y - 12], [x - 48, y - 2], [x + 38, y - 2], [x + 102, y - 14]], P.ink(1.8, 0.85));
+  P.fill([[x - 42, y - 34], [x + 32, y - 34], [x + 32, y - 12], [x - 42, y - 12]],
+         tint([238, 226, 200], pal, 0.6));
+  P.rect(x - 42, y - 34, 74, 22, P.ink(1.6, 0.8));
+  for(let i = 0; i < 3; i++){
+    P.rect(x - 36 + i * 23, y - 30, 15, 13, P.ink(1.1, 0.5));
+    P.fill([[x - 35 + i * 23, y - 29], [x - 22 + i * 23, y - 29], [x - 22 + i * 23, y - 18],
+            [x - 35 + i * 23, y - 18]], css([244, 200, 122], 0.45));
+  }
+  for(let i = 0; i < 5; i++){
+    P.circle(x - 36 + i * 17, y - 39 - (i % 2) * 4, 7, P.ink(1.1, 0.55));
+    P.fill(ellipsePts(x - 36 + i * 17, y - 39 - (i % 2) * 4, 6, 5, 10),
+           tint(ACC.rose, pal, 0.45));
+  }
+  P.line(x + 50, y - 12, x + 50, y - 94, P.ink(1.7, 0.8));
+  P.line(x + 50, y - 94, x - 6, y - 14, P.ink(1.0, 0.35));
+  reflect(P, pal, x - 96, x + 96, y + 18, 26, 33);
+}
+
+/* --------------------------------------------------------- the common garden
+   The same garden on every page: bank, path, pond, trees, two stone lanterns,
+   and the pagoda standing roughly centred in the lower third. The city is what
+   changes behind it. */
+function drawGarden(P, pal, env){
+  const acc = env.acc || {};
+  const canopy = acc.canopy || ACC.leaf;
+
+  P.fill(BANK, tint([164, 172, 122], pal, 0.46));
+  P.poly(BANK, P.ink(2.3, 0.9));
+  for(let i = 0; i < 4; i++){
+    P.path(wavePts(-40, 596 + i * 22, DW + 40, 2.6, 44, i * 1.3), P.ink(1.2, 0.14));
+  }
+
+  /* path to the pagoda */
+  const pathL = [[512, DH + 24], [548, 680], [590, 652], [608, 640]];
+  const pathR = [[690, DH + 24], [664, 680], [634, 652], [624, 640]];
+  P.fill(pathL.concat(pathR.slice().reverse()), tint(ACC.ochre, pal, 0.46));
+  P.path(pathL, P.ink(1.6, 0.62));
+  P.path(pathR, P.ink(1.6, 0.62));
+  for(let i = 0; i < 4; i++){
+    P.ellipse(600 + i * 3, 690 - i * 15, 22 - i * 3, 7 - i * 0.7, P.ink(1.1, 0.32));
+  }
+
+  /* pond */
+  const pond = ellipsePts(296, 648, 104, 28, 20);
+  P.fill(pond, css(mix(pal.water, [82, 128, 142], 0.6), 0.9));
+  P.poly(pond, P.ink(2.0, 0.88));
+  P.path(wavePts(214, 642, 372, 2.2, 22, 0.6), P.ink(1.3, 0.45));
+  P.path(wavePts(232, 656, 356, 2.0, 24, 2.1), P.ink(1.2, 0.34));
+  P.circle(252, 645, 15, P.ink(1.3, 0.62));
+  P.circle(336, 652, 12, P.ink(1.3, 0.62));
+  P.fill(ellipsePts(252, 645, 8, 5, 10), tint(ACC.pine, pal, 0.45));
+
+  /* trees and shrubs */
+  treeBall(P, pal, 168, 642, 56, canopy);
+  treeBall(P, pal, 1032, 650, 46, canopy);
+  conifer(P, pal, 1140, 660, 86, 32, 0.85);
+  shrub(P, pal, 396, 646, 21);
+  shrub(P, pal, 858, 640, 18);
+  shrub(P, pal, 936, 656, 14);
+
+  /* a low hedge along the crest, broken where the pagoda stands */
+  const HR = rng(29);
+  for(let i = 0; i < 22; i++){
+    const hx = 30 + i * 56 + HR() * 8;
+    if(hx > 452 && hx < 786) continue;
+    const hy = 576 + (hx / DW) * 20 + HR() * 6;
+    const bump = ellipsePts(hx, hy, 19, 10, 10);
+    P.fill(bump, tint(ACC.leaf, pal, 0.34));
+    P.poly(bump, P.ink(1.2, 0.5));
+  }
+  /* small flowers in the grass */
+  for(let i = 0; i < 16; i++){
+    const fx = 40 + HR() * 1150, fy = 604 + HR() * 84;
+    if(fx > 500 && fx < 748) continue;
+    P.circle(fx, fy, 6, P.ink(1.0, 0.55));
+    P.fill(ellipsePts(fx, fy, 3, 3, 6), tint(i % 2 ? ACC.rose : [214, 158, 74], pal, 0.7));
+  }
+
+  /* stone lanterns flanking the pagoda */
+  stoneLantern(P, pal, 502, 652);
+  stoneLantern(P, pal, 752, 648);
+
+  pagoda(P, pal, 616, 674, 1.15, env);
+
+  /* the city's own small guest in the garden */
+  if(acc.accent) acc.accent(P, pal, env);
+
+  /* grass tufts, drawn last so they sit in front of everything */
+  const R = rng(13);
+  for(let i = 0; i < 30; i++){
+    const gx = -20 + R() * 1280, gy = 566 + R() * 152;
+    if(gx > 185 && gx < 405 && gy > 606 && gy < 684) continue;   // keep the pond clear
+    P.line(gx, gy, gx - 5, gy - 11, P.ink(1.2, 0.55));
+    P.line(gx, gy, gx + 1, gy - 13, P.ink(1.2, 0.6));
+    P.line(gx, gy, gx + 6, gy - 9, P.ink(1.2, 0.55));
+  }
+}
+
+/* Pagoda roofs: a concave eave line whose tips flick up, filled vermilion. */
+function roofTopPts(bx, y, half, rise, lift){
+  const pts = [];
+  const n = 10;
+  for(let i = 0; i <= n; i++){
+    const u = i / n * 2 - 1;
+    let yy = y - rise * (1 - Math.pow(Math.abs(u), 2.6));
+    const tip = Math.max(0, Math.abs(u) - 0.80) / 0.20;
+    yy -= tip * tip * lift;
+    pts.push([bx + u * half, yy]);
+  }
+  return pts;
+}
+
+function pagodaRoof(P, pal, bx, y, half, rise, lift, snow){
+  const top = roofTopPts(bx, y, half, rise, lift);
+  const pts = top.concat([[bx + half * 0.9, y + 5], [bx - half * 0.9, y + 5]]);
+  P.fill(pts, tint(ACC.vermilion, pal, 0.66));
+  P.poly(pts, P.ink(1.7, 0.9));
+  P.wash([[bx - half * 0.92, y + 1], [bx + half * 0.92, y + 1], [bx + half * 0.86, y + 6],
+          [bx - half * 0.86, y + 6]], css(pal.ink, 0.32), 4, -18);
+  P.curve(top, { stroke: "rgba(120,52,36,0.55)", strokeWidth: 2.0, roughness: 1.2, seed: nextSeed() });
+  if(snow){
+    P.curve(top, { stroke: "rgba(253,253,255,0.92)", strokeWidth: 3.6, roughness: 1.0, seed: nextSeed() });
+  }
+}
+
+function pagoda(P, pal, bx, baseY, s, env){
+  const snow = !!env && env.wx === "snow";
+  /* stone platform */
+  P.fill([[bx - 52 * s, baseY - 9 * s], [bx + 52 * s, baseY - 9 * s],
+          [bx + 52 * s, baseY], [bx - 52 * s, baseY]], tint(ACC.stone, pal, 0.55));
+  P.rect(bx - 52 * s, baseY - 9 * s, 104 * s, 9 * s, P.ink(1.6, 0.8));
+
+  const tiers = [
+    { eaves: 64, wall: 31, wallH: 27 },
+    { eaves: 55, wall: 25, wallH: 22 },
+    { eaves: 46, wall: 19, wallH: 18 }
+  ];
+  let y = baseY - 9 * s;
+  for(let t = 0; t < 3; t++){
+    const T = tiers[t];
+    const wallTop = y - T.wallH * s;
+    P.fill([[bx - T.wall * s, wallTop], [bx + T.wall * s, wallTop],
+            [bx + T.wall * s, y], [bx - T.wall * s, y]], tint(ACC.cream, pal, 0.72));
+    P.rect(bx - T.wall * s, wallTop, T.wall * 2 * s, T.wallH * s, P.ink(1.7, 0.88));
+    if(t === 0){
+      P.fill([[bx - 9 * s, y], [bx + 9 * s, y], [bx + 9 * s, y - 17 * s], [bx - 9 * s, y - 17 * s]],
+             css(pal.ink, 0.55));
+      P.rect(bx - 9 * s, y - 17 * s, 18 * s, 17 * s, P.ink(1.3, 0.7));
+    }else{
+      for(let k = -1; k <= 1; k += 2){
+        P.fill([[bx + k * 10 * s - 4 * s, wallTop + 6 * s], [bx + k * 10 * s + 4 * s, wallTop + 6 * s],
+                [bx + k * 10 * s + 4 * s, wallTop + 14 * s], [bx + k * 10 * s - 4 * s, wallTop + 14 * s]],
+               css(pal.ink, 0.4));
+        P.rect(bx + k * 10 * s - 4 * s, wallTop + 6 * s, 8 * s, 8 * s, P.ink(1.1, 0.6));
+      }
+    }
+    pagodaRoof(P, pal, bx, wallTop + 2 * s, T.eaves * s, 14 * s, 5 * s, snow);
+    y = wallTop - 7 * s;
+  }
+
+  /* finial: rings on a bronze mast */
+  P.line(bx, y + 2 * s, bx, y - 30 * s, P.ink(1.8, 0.88));
+  for(let i = 0; i < 3; i++){
+    P.ellipse(bx, y - (7 + i * 7) * s, (15 - i * 3.4) * s, 5 * s, P.ink(1.3, 0.78));
+  }
+  P.circle(bx, y - 34 * s, 6 * s, P.ink(1.4, 0.8));
+}
+
+function stoneLantern(P, pal, x, y){
+  // base
+  P.fill([[x - 15, y - 10], [x + 15, y - 10], [x + 15, y], [x - 15, y]], tint(ACC.stone, pal, 0.45));
+  P.rect(x - 15, y - 10, 30, 10, P.ink(1.4, 0.78));
+  // post
+  P.fill([[x - 6, y - 34], [x + 6, y - 34], [x + 6, y - 10], [x - 6, y - 10]],
+         tint(ACC.stone, pal, 0.50));
+  P.rect(x - 6, y - 34, 12, 24, P.ink(1.35, 0.76));
+  // light box with a warm window
+  P.fill([[x - 15, y - 52], [x + 15, y - 52], [x + 15, y - 34], [x - 15, y - 34]],
+         tint(ACC.stone, pal, 0.52));
+  P.rect(x - 15, y - 52, 30, 18, P.ink(1.5, 0.82));
+  P.fill([[x - 9, y - 49], [x + 9, y - 49], [x + 9, y - 37], [x - 9, y - 37]],
+         css([244, 202, 122], 0.32 + 0.45 * pal.n));
+  P.rect(x - 9, y - 49, 18, 12, P.ink(1.2, 0.6));
+  // roof with a lift at the corners
+  P.fill([[x - 23, y - 52], [x - 15, y - 61], [x, y - 66], [x + 15, y - 61], [x + 23, y - 52]],
+         tint(ACC.stone, pal, 0.55));
+  P.poly([[x - 23, y - 52], [x - 15, y - 61], [x, y - 66], [x + 15, y - 61], [x + 23, y - 52]],
+         P.ink(1.6, 0.84));
+  P.circle(x, y - 71, 7, P.ink(1.35, 0.72));
+  if(pal.n > 0.18){
+    P.fill([[x - 8, y - 48], [x + 8, y - 48], [x + 8, y - 38], [x - 8, y - 38]],
+           css([244, 198, 116], 0.30 + 0.45 * pal.n));
+  }
+}
+
+/* The one city-specific guest each page keeps in its garden. */
+function accentVancouver(P, pal, env){
+  // ferns and a mossy stone, nothing loud
+  for(let i = 0; i < 4; i++){
+    const x = 180 + i * 40 + (i % 2) * 8, y = 664 + (i % 2) * 12;
+    for(let f = 0; f < 5; f++){
+      const a = -Math.PI * 0.86 + f * (Math.PI * 0.55 / 4);
+      P.curve([[x, y], [x + Math.cos(a) * 13, y + Math.sin(a) * 13],
+               [x + Math.cos(a) * 25, y + Math.sin(a) * 22]], P.ink(1.3, 0.6));
+    }
+  }
+  P.fill([[912, 686], [930, 670], [958, 666], [976, 678], [968, 692], [926, 696]],
+         tint(ACC.slate, pal, 0.5));
+  P.poly([[912, 686], [930, 670], [958, 666], [976, 678], [968, 692], [926, 696]],
+         P.ink(1.5, 0.7));
+  P.fill([[930, 670], [958, 666], [962, 676], [936, 680]], tint(ACC.pine, pal, 0.45));
+}
+
+function accentToronto(P, pal, env){
+  const R = rng(77);
+  for(let i = 0; i < 9; i++){
+    const x = 380 + R() * 520, y = 640 + R() * 66;
+    mapleLeaf(P, pal, x, y, 7 + R() * 5, R() * TAU, 0.5);
+  }
+  // an amber tree, so the autumn reads even without motion
+  treeBall(P, pal, 246, 690, 34, ACC.amber);
+}
+
+function accentHawaii(P, pal, env){
+  const stem = [[900, 690], [906, 672], [912, 658]];
+  P.curve(stem, P.ink(1.5, 0.6));
+  P.curve([[930, 692], [926, 676], [920, 662]], P.ink(1.5, 0.6));
+  hibiscus(P, pal, 912, 650, 15);
+  hibiscus(P, pal, 936, 664, 11);
+  P.fill(ellipsePts(918, 668, 26, 16, 12), tint(ACC.leaf, pal, 0.35));
+  P.wash(ellipsePts(918, 668, 26, 16, 12), css(pal.ink, 0.12), 5, -30);
+}
+
+function accentHongKong(P, pal, env){
+  P.line(872, 690, 872, 588, P.ink(2.1, 0.85));
+  P.line(872, 588, 906, 588, P.ink(2.1, 0.85));
+  P.line(872, 596, 838, 596, P.ink(1.6, 0.7));
+  for(const L of [[906, 596], [838, 604]]){
+    P.line(L[0], L[1], L[0], L[1] + 12, P.ink(1.1, 0.5));
+    lanternBody(P, pal, L[0], L[1] + 22, 15, 20);
+    env.lights.push([L[0], L[1] + 22, 24, 1, "lantern"]);
+  }
+}
+
+function accentAmsterdam(P, pal, env){
+  // tulip bed, and the low fence that keeps it in
+  for(let i = 0; i < 9; i++){
+    const tx = 838 + i * 24 + (i % 2) * 5, ty = 646 + (i % 3) * 9;
+    P.line(tx, ty + 34, tx + 2, ty, P.ink(1.2, 0.6));
+    P.line(tx, ty + 28, tx - 11, ty + 19, P.ink(1.1, 0.5));
+    const cup = [[tx - 8, ty], [tx - 8, ty - 12], [tx - 3, ty - 8], [tx, ty - 14],
+                 [tx + 3, ty - 8], [tx + 8, ty - 12], [tx + 8, ty]];
+    P.fill(cup, tint(i % 3 === 0 ? [204, 84, 96] : i % 3 === 1 ? ACC.rose : [214, 148, 72], pal, 0.55));
+    P.poly(cup, P.ink(1.2, 0.7));
+  }
+  for(let i = 0; i < 5; i++){
+    P.line(830 + i * 56, 660, 830 + i * 56, 640, P.ink(1.4, 0.6));
+  }
+  P.line(830, 648, 1054, 648, P.ink(1.3, 0.55));
+}
+
+/* --------------------------------------------------------- weather, on paper */
+function pageRain(P, pal, g){
+  g.fillStyle = css([76, 96, 118], 0.12);
+  g.fillRect(OX, OY, DW * K, DH * K);
+  const R = rng(77);
+  for(let i = 0; i < 95; i++){
+    const x = R() * DW, y = R() * DH * 0.94, l = 10 + R() * 20;
+    P.line(x, y, x - l * 0.2, y + l, P.ink(1.0, 0.13 + R() * 0.12));
+  }
+  for(let i = 0; i < 12; i++){
+    const x = R() * DW, y = 570 + R() * 110;
+    P.line(x, y, x + 30 + R() * 44, y, P.ink(1.4, 0.10 + R() * 0.10));
+  }
+  P.wash([[-60, 574], [DW + 60, 570], [DW + 60, 592], [-60, 596]], css([96, 116, 138], 0.18), 8, -20);
+}
+
+function pageSnow(P, pal, g){
+  g.fillStyle = css([248, 248, 253], 0.17);
+  g.fillRect(OX, OY, DW * K, DH * K);
+  const R = rng(78);
+  const flake = mix(pal.ink, [255, 255, 255], 0.52);
+  for(let i = 0; i < 95; i++){
+    const x = R() * DW, y = R() * DH, r = 1.8 + R() * 2.8;
+    P.circle(x, y, r * 2, { stroke: css(flake, 0.16 + R() * 0.22), strokeWidth: 1.1,
+                            roughness: 0.9, seed: nextSeed() });
+  }
+  // snow lying along the garden crest (a broad soft band, not a wire) and the far shore
+  const crest = [[-40, 626], [24, 598], [130, 580], [260, 568], [400, 560], [540, 557],
+                 [690, 557], [840, 561], [980, 569], [1090, 583], [1180, 609]];
+  const crestLow = crest.map(p => [p[0], p[1] + 15]);
+  P.fill(crest.concat(crestLow.slice().reverse()), css([252, 252, 250], 0.42));
+  P.curve(crest, { stroke: "rgba(252,252,250,0.85)", strokeWidth: 4.5, roughness: 1.1, seed: nextSeed() });
+  P.curve(wavePts(-60, HZ + 2, DW + 60, 2, 40, 0.5),
+          { stroke: "rgba(250,250,248,0.7)", strokeWidth: 3.4, roughness: 1.1, seed: nextSeed() });
+}
+
+/* ------------------------------------------------------------------ grading */
+function gradePage(g, pal){
+  g.globalCompositeOperation = "multiply";
+  g.fillStyle = css(pal.dim, 1);
+  g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "source-over";
+
+  const vg = g.createRadialGradient(W * 0.5, H * 0.48, Math.min(W, H) * 0.34,
+                                    W * 0.5, H * 0.48, Math.max(W, H) * 0.82);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, css(mix(pal.ink, [40, 30, 22], 0.35), 0.16));
+  g.fillStyle = vg;
+  g.fillRect(0, 0, W, H);
+}
+
+function caption(g, pal, cityIx, ph, wx){
+  const label = CITIES[cityIx].name.toLowerCase() + "  \u00b7  " + fmtHour(ph) +
+                (wx === "rain" ? "  \u00b7  rain" : wx === "snow" ? "  \u00b7  snow" : "");
+  const px = OX + (DW - 38) * K, py = OY + 52 * K;
+  g.save();
+  g.textAlign = "right";
+  g.textBaseline = "alphabetic";
+  g.font = "italic " + Math.round(18 * K) + "px Georgia, 'Iowan Old Style', 'Palatino Linotype', serif";
+  g.fillStyle = css(pal.ink, 0.55);
+  g.fillText(label, px, py);
+  const wdt = g.measureText(label).width;
+  g.strokeStyle = css(pal.ink, 0.22);
+  g.lineWidth = Math.max(1, K * 1.1);
+  g.beginPath();
+  g.moveTo(px - wdt, py + 7 * K);
+  g.lineTo(px, py + 6 * K);
+  g.stroke();
+  g.restore();
+}
+
+/* ------------------------------------------------------------ page + cache */
+const CITIES = [
+  { name: "Vancouver", draw: drawVancouver, focus: 700,
+    glow: { col: [206, 216, 218], y0: 220, y1: 430, a: 0.10 },
+    acc: { canopy: ACC.pine, accent: accentVancouver } },
+  { name: "Toronto", draw: drawToronto, focus: 700,
+    glow: { col: [232, 168, 92], y0: 150, y1: 430, a: 0.22 },
+    acc: { canopy: ACC.amber, accent: accentToronto } },
+  { name: "Hawai'i", draw: drawHawaii, focus: 620,
+    glow: { col: [244, 210, 158], y0: 200, y1: 400, a: 0.12 },
+    acc: { canopy: ACC.leaf, accent: accentHawaii } },
+  { name: "Hong Kong", draw: drawHongKong, focus: 660,
+    glow: { col: [226, 152, 92], y0: 250, y1: 430, a: 0.16 },
+    acc: { canopy: ACC.leaf, accent: accentHongKong } },
+  { name: "Amsterdam", draw: drawAmsterdam, focus: 660,
+    glow: { col: [238, 208, 170], y0: 250, y1: 430, a: 0.15 },
+    acc: { canopy: ACC.leaf, accent: accentAmsterdam } }
+];
+
+const pageCache = new Map();
+let pageKey = "", curPage = null, prevPage = null, fadeT = 1;
+
+function pageSignature(){
+  return city + "|" + bucketOf(hour) + "|" + currentWx + "|" +
+         Math.round(cloudAmt * 2) + "|" + W + "x" + H;
+}
+
+function trimPages(){
+  while(pageCache.size > 3){
+    for(const k of pageCache.keys()){
+      if(k !== pageKey){ pageCache.delete(k); break; }
+    }
+  }
+}
+
+function renderPage(key){
+  const parts = key.split("|");
+  const cityIx = +parts[0], bIx = +parts[1], wx = parts[2], cloudB = +parts[3];
+  _seed = 1000 + cityIx * 733 + bIx * 977 + (wx === "rain" ? 31 : wx === "snow" ? 67 : 11);
+
+  const ph = bucketHour(bIx);
+  const pal = palette(ph);
+  const cnv = document.createElement("canvas");
+  cnv.width = W; cnv.height = H;
+  const g = cnv.getContext("2d", { alpha: false });
+  const env = { m: pal.m, wx: wx, cloudB: cloudB, lights: [], acc: CITIES[cityIx].acc };
+
+  /* the sheet itself */
+  g.fillStyle = css(PAPER);
+  g.fillRect(0, 0, W, H);
+  if(grainPat){ g.fillStyle = grainPat; g.fillRect(0, 0, W, H); }
+  if(rulePat){
+    g.save();
+    g.globalAlpha = 0.8;
+    g.fillStyle = rulePat;
+    g.fillRect(0, 0, W, H);
+    g.restore();
+  }
+
+  /* sky wash */
+  const sky = g.createLinearGradient(0, OY, 0, OY + HZ * K);
+  sky.addColorStop(0, css(pal.skyT, 0.95));
+  sky.addColorStop(0.62, css(mix(pal.skyT, pal.skyB, 0.7), 0.9));
+  sky.addColorStop(1, css(pal.skyB, 0.94));
+  g.fillStyle = sky;
+  g.fillRect(OX, OY, DW * K, HZ * K + 2);
+
+  const P = Pen(rough.canvas(cnv), pal);
+
+  /* each city has its own light in the sky: a soft band, never a hard edge */
+  const glow = CITIES[cityIx].glow;
+  if(glow){
+    const c = mix(glow.col, pal.ink, pal.n * 0.16);
+    const grd = g.createLinearGradient(0, OY + glow.y0 * K, 0, OY + glow.y1 * K);
+    grd.addColorStop(0, css(c, 0));
+    grd.addColorStop(0.62, css(c, glow.a));
+    grd.addColorStop(1, css(c, 0));
+    g.fillStyle = grd;
+    g.fillRect(OX, OY + glow.y0 * K, DW * K, (glow.y1 - glow.y0) * K);
+  }
+
+  clouds(P, pal, cloudB === 0 ? 1 : cloudB === 1 ? 3 : 5, 51);
+  skyBodies(P, pal, g, ph);
+  stars(P, pal, 32);
+  if(cloudB <= 1) birds(P, pal, 3, 8);
+
+  /* still water behind the city */
+  const wg = g.createLinearGradient(0, OY + HZ * K, 0, OY + DH * K);
+  wg.addColorStop(0, css(mix(pal.water, pal.paper, 0.10), 0.96));
+  wg.addColorStop(1, css(mix(pal.water, pal.paper, 0.34), 0.96));
+  g.fillStyle = wg;
+  g.fillRect(OX, OY + HZ * K, DW * K, (DH - HZ) * K + 2);
+
+  CITIES[cityIx].draw(P, pal, env);
+  horizonLine(P, pal, HZ, 0.75);
+  drawGarden(P, pal, env);
+  if(wx === "rain") pageRain(P, pal, g);
+  else if(wx === "snow") pageSnow(P, pal, g);
+
+  gradePage(g, pal);
+  caption(g, pal, cityIx, ph, wx);
+  return { cv: cnv, lights: env.lights };
+}
+
+function ensurePage(){
+  const key = pageSignature();
+  if(key === pageKey && curPage) return false;
+  let entry = pageCache.get(key);
+  if(!entry){
+    entry = renderPage(key);
+    pageCache.set(key, entry);
+    trimPages();
+  }
+  prevPage = curPage;
+  curPage = entry;
+  pageKey = key;
+  fadeT = (prevPage && !reduceMotion) ? 0 : 1;
+  return true;
+}
+
+
+/* ==================================================================== state */
+let city = 0;                 // which page of the book
+let ownTime = true;           // clock source: own clock or the city's
+let currentWx = "clear";      // clear | rain | snow
+let cloudAmt = 0;             // 0..1, from Open-Meteo, nudges the cloud count
+let wxAuto = true;            // weather follows the API rather than the buttons
+let placeTemp = null, placeCode = null, fetchState = "idle", lastFetchAt = 0;
+let followClock = true;       // the hour follows a real clock until you drag the slider
+
+const PLACES = [
+  { name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
+  { name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
+  { name: "Hawai'i",   lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu" },
+  { name: "Hong Kong", lat: 22.3193, lon: 114.1694,  tz: "Asia/Hong_Kong" },
+  { name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" }
+];
+
+function wxToCode(kind){ return kind === "rain" ? 61 : kind === "snow" ? 71 : 0; }
+function weatherKind(code){
+  if([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
+  if((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  return "clear";
+}
+function condLabel(code){
+  if(code === 0) return "Clear sky";
+  if(code <= 2) return "Partly cloudy";
+  if(code === 3) return "Overcast";
+  if(code === 45 || code === 48) return "Fog";
+  if(code >= 51 && code <= 57) return "Drizzle";
+  if(code >= 61 && code <= 67) return "Rain";
+  if(code >= 71 && code <= 77) return "Snow";
+  if(code >= 80 && code <= 82) return "Showers";
+  if(code === 85 || code === 86) return "Snow showers";
+  if(code >= 95) return "Thunderstorm";
+  return "\u2014";
+}
+
+function localHour(tz){
+  try{
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false
+    }).formatToParts(new Date());
+    const h = Number(parts.find(p => p.type === "hour").value) % 24;
+    const m = Number(parts.find(p => p.type === "minute").value);
+    return h + m / 60;
+  }catch(e){ return hour; }
+}
+function ownHour(){
+  const d = new Date();
+  return d.getHours() + d.getMinutes() / 60;
+}
+function realHour(){
+  return ownTime ? ownHour() : localHour(PLACES[city].tz);
+}
+
+/* ------------------------------------------------------------- live weather */
+let rain = [], snow = [], leaves = [];
+let rainAmt = 0, snowAmt = 0, rainTarget = 0, snowTarget = 0;
+
+function seedParticles(){
+  const R = rng(4242);
+  const area = Math.max(1, innerWidth * innerHeight);
+  const nRain = clamp(Math.round(area / 4200), 120, 420);
+  const nSnow = clamp(Math.round(area / 6400), 90, 340);
+
+  rain = [];
+  for(let i = 0; i < nRain; i++){
+    rain.push({ x: R(), y: R(), v: 0.85 + R() * 0.6, l: 0.016 + R() * 0.026,
+                k: 0.16 + R() * 0.10, a: 0.7 + R() * 0.6 });
+  }
+  snow = [];
+  for(let i = 0; i < nSnow; i++){
+    snow.push({ x: R(), y: R(), v: 0.035 + R() * 0.05, r: 0.8 + R() * 1.9,
+                amp: 0.02 + R() * 0.05, ph: R() * 6.283, a: 0.6 + R() * 0.8 });
+  }
+  leaves = [];
+  for(let i = 0; i < 13; i++){
+    leaves.push({ x: R(), y: R(), v: 0.028 + R() * 0.04, r: 7 + R() * 8,
+                  ph: R() * 6.283, sp: 0.5 + R() * 0.9, rot: R() * 6.283,
+                  vr: (R() - 0.5) * 1.8 });
+  }
+}
+
+function updateWeather(dt){
+  rainAmt += (rainTarget - rainAmt) * Math.min(1, dt * 1.4);
+  snowAmt += (snowTarget - snowAmt) * Math.min(1, dt * 1.4);
+  if(rainAmt < 0.002) rainAmt = rainTarget === 0 ? 0 : rainAmt;
+  if(snowAmt < 0.002) snowAmt = snowTarget === 0 ? 0 : snowAmt;
+
+  for(let i = 0; i < rain.length; i++){
+    const r = rain[i];
+    r.y += r.v * dt * 1.35;
+    r.x -= r.k * dt * 0.55;
+    if(r.y > 1.05){ r.y = -0.05; r.x = Math.random(); }
+    if(r.x < -0.05) r.x = 1.05;
+  }
+  for(let i = 0; i < snow.length; i++){
+    const f = snow[i];
+    f.y += f.v * dt;
+    f.x += Math.sin(f.ph + performance.now() * 0.0004) * f.amp * dt;
+    if(f.y > 1.05){ f.y = -0.05; f.x = Math.random(); }
+    if(f.x < -0.05) f.x = 1.05; else if(f.x > 1.05) f.x = -0.05;
+  }
+  const night = moodAt(hour).night;
+  for(let i = 0; i < leaves.length; i++){
+    const L = leaves[i];
+    L.y += L.v * dt * (1 - night * 0.6);
+    L.x += Math.sin(performance.now() * 0.00035 + L.ph) * 0.012 * dt;
+    L.rot += L.vr * dt;
+    if(L.y > 1.04){ L.y = -0.04; L.x = Math.random(); }
+    if(L.x < -0.04) L.x = 1.04; else if(L.x > 1.04) L.x = -0.04;
+  }
+}
+
+/* ------------------------------------------------------------------ glows */
+const glowSprites = new Map();
+function glowSprite(col){
+  const key = col.join(",");
+  let c = glowSprites.get(key);
+  if(c) return c;
+  const SIZE = 96;
+  c = document.createElement("canvas");
+  c.width = c.height = SIZE;
+  const g = c.getContext("2d");
+  const rg = g.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
+  rg.addColorStop(0, "rgba(" + key + ",1)");
+  rg.addColorStop(0.40, "rgba(" + key + ",0.30)");
+  rg.addColorStop(1, "rgba(" + key + ",0)");
+  g.fillStyle = rg;
+  g.fillRect(0, 0, SIZE, SIZE);
+  glowSprites.set(key, c);
+  return c;
+}
+function glow(g, x, y, r, col, a){
+  if(a <= 0.004 || r <= 0.5) return;
+  g.globalAlpha = Math.min(1, a);
+  g.drawImage(glowSprite(col), x - r, y - r, r * 2, r * 2);
+  g.globalAlpha = 1;
+}
+
+/* ------------------------------------------------------------- live drawing */
+function drawRain(col){
+  const buckets = [0.55, 0.85, 1.15];
+  for(let b = 0; b < 3; b++){
+    ctx.beginPath();
+    for(let i = b; i < rain.length; i += 3){
+      const r = rain[i];
+      const x = r.x * W, y = r.y * H;
+      const len = r.l * H * (0.75 + rainAmt * 0.6);
+      const k = r.k * 0.10 * W;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - k, y + len);
+    }
+    ctx.strokeStyle = css(col, (0.11 + b * 0.055) * rainAmt);
+    ctx.lineWidth = Math.max(1, DPR * 0.85);
+    ctx.stroke();
+  }
+}
+
+function drawSnow(){
+  const col = [214, 226, 244];
+  for(let b = 0; b < 2; b++){
+    ctx.fillStyle = css(col, (0.42 + b * 0.3) * snowAmt);
+    ctx.beginPath();
+    for(let i = b; i < snow.length; i += 2){
+      const f = snow[i];
+      const x = f.x * W, y = f.y * H, r = f.r * DPR;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
+    }
+    ctx.fill();
+  }
+  // a few flakes drawn as little pencil crosses so snow reads on paper
+  ctx.strokeStyle = css([250, 252, 255], 0.5 * snowAmt);
+  ctx.lineWidth = Math.max(1, DPR * 0.8);
+  ctx.beginPath();
+  for(let i = 0; i < snow.length; i += 5){
+    const f = snow[i];
+    const x = f.x * W, y = f.y * H, r = f.r * DPR * 1.9;
+    ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+    ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+  }
+  ctx.stroke();
+}
+
+function drawLeaves(now){
+  const inkCol = css([94, 58, 30], 0.42 + 0.22 * (1 - moodAt(hour).night));
+  const fillCol = css([204, 126, 58], 0.30);
+  const shape = [[0, -1.15], [0.36, -0.58], [0.86, -0.36], [0.44, 0.06],
+                 [0.56, 0.52], [0, 0.22], [-0.56, 0.52], [-0.44, 0.06], [-0.86, -0.36], [-0.36, -0.58]];
+  for(let i = 0; i < leaves.length; i++){
+    const L = leaves[i];
+    const x = (L.x + Math.sin(now * 0.0006 * L.sp + L.ph) * 0.03) * W;
+    const y = L.y * H;
+    const s = L.r * DPR * 0.55;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(L.rot + now * 0.001 * L.sp);
+    ctx.beginPath();
+    for(let j = 0; j < shape.length; j++){
+      const px = shape[j][0] * s, py = shape[j][1] * s;
+      if(j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fillCol;
+    ctx.fill();
+    ctx.strokeStyle = inkCol;
+    ctx.lineWidth = Math.max(1, DPR * 0.8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, s * 0.3);
+    ctx.lineTo(0, s * 1.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawMist(now){
+  ctx.save();
+  ctx.lineCap = "round";
+  for(let i = 0; i < 3; i++){
+    ctx.strokeStyle = css([250, 248, 242], 0.10 - i * 0.025);
+    ctx.lineWidth = Math.max(2, DPR * (6 + i * 4));
+    ctx.beginPath();
+    const base = H * (0.60 + i * 0.055);
+    for(let x = -60; x <= W + 60; x += 60 * DPR){
+      const yy = base + Math.sin(x * 0.0014 / DPR + now * 0.00021 + i * 1.7) * 7 * DPR;
+      if(x <= -60) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawLive(now, dt){
+  const m = moodAt(hour);
+
+  if(fadeT < 1 && prevPage){
+    fadeT = Math.min(1, fadeT + dt / 0.9);
+    const t = fadeT * fadeT * (3 - 2 * fadeT);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(prevPage.cv, 0, 0);
+    ctx.globalAlpha = t;
+    ctx.drawImage(curPage.cv, 0, 0);
+    ctx.globalAlpha = 1;
+  }else if(curPage){
+    ctx.drawImage(curPage.cv, 0, 0);
+  }
+
+  /* the page was drawn for a bucket; this keeps the light moving between them */
+  if(m.ta > 0.012){
+    ctx.fillStyle = css(m.tint, m.ta * 0.24);
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /* warm points in the drawing: lit windows, lanterns, the tower beacon */
+  const nightA = m.night;
+  if(nightA > 0.10 && curPage && curPage.lights.length){
+    ctx.globalCompositeOperation = "lighter";
+    for(let i = 0; i < curPage.lights.length; i++){
+      const L = curPage.lights[i];
+      const x = OX + L[0] * K, y = OY + L[1] * K;
+      const flick = 0.74 + 0.26 * Math.sin(now * 0.0011 + i * 1.73);
+      const warm = L[4] === "neon" ? [255, 118, 88]
+                 : L[4] === "window" ? [255, 198, 124]
+                 : [255, 186, 108];
+      glow(ctx, x, y, L[2] * K * 1.5, warm, 0.30 * nightA * L[3] * flick);
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  /* one small motion per page */
+  if(!reduceMotion){
+    if(city === 1) drawLeaves(now);
+    else if(city === 0) drawMist(now);
+  }
+
+  if(rainAmt > 0.01 || snowAmt > 0.01){
+    const bright = (m.top[0] + m.top[1] + m.top[2]) / 3;
+    if(rainAmt > 0.01) drawRain(bright > 140 ? [104, 120, 140] : [190, 206, 224]);
+    if(snowAmt > 0.01) drawSnow();
+  }
+
+  /* the paper breathes: a slow, tiny grain offset */
+  if(grainPat){
+    const gx = reduceMotion ? 0 : Math.sin(now * 0.00006) * 3 * DPR + Math.cos(now * 0.000017) * 4 * DPR;
+    const gy = reduceMotion ? 0 : Math.cos(now * 0.00005) * 3 * DPR + Math.sin(now * 0.000013) * 5 * DPR;
+    ctx.save();
+    ctx.translate(gx, gy);
+    ctx.fillStyle = grainPat;
+    ctx.fillRect(-gx, -gy, W, H);
+    ctx.restore();
+  }
+}
+
+/* ======================================================================= UI */
+const hourInput = document.getElementById("hour");
+const clockEl = document.getElementById("clock");
+const cycleBtn = document.getElementById("cycle");
+const ownBtn = document.getElementById("ownTime");
+const cityBtns = Array.from(document.querySelectorAll("[data-city]"));
+const wxBtns = Array.from(document.querySelectorAll("[data-wx]"));
+const hint = document.getElementById("hint");
+
+const info = document.getElementById("info");
+const infoHead = document.getElementById("infoHead");
+const infoPlace = document.getElementById("infoPlace");
+const infoClock = document.getElementById("infoClock");
+const infoRefresh = document.getElementById("infoRefresh");
+const infoCond = document.getElementById("infoCond");
+const infoTemp = document.getElementById("infoTemp");
+const infoMeta = document.getElementById("infoMeta");
+const infoInk = document.getElementById("infoInk");
+const infoScene = document.getElementById("infoScene");
+
+const pad2 = n => String(n).padStart(2, "0");
+function fmtHour(h){
+  const x = ((h % 24) + 24) % 24;
+  const hh = Math.floor(x), mm = Math.min(59, Math.round((x - hh) * 60));
+  return pad2(hh) + ":" + pad2(mm);
+}
+
+let lastClock = "";
+function updateClock(){
+  const txt = fmtHour(hour);
+  if(txt !== lastClock){
+    lastClock = txt;
+    clockEl.textContent = txt;
+    if(document.activeElement !== hourInput) hourInput.value = hour.toFixed(2);
+  }
+}
+
+function syncButtons(){
+  for(const b of cityBtns){
+    const on = +b.dataset.city === city;
+    b.setAttribute("aria-pressed", String(on));
+    if(on) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+  }
+  ownBtn.setAttribute("aria-pressed", String(ownTime));
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+}
+
+function setWeather(kind){
+  currentWx = kind;
+  rainTarget = kind === "rain" ? 1 : 0;
+  snowTarget = kind === "snow" ? 1 : 0;
+  for(const b of wxBtns) b.setAttribute("aria-pressed", String(b.dataset.wx === kind));
+}
+
+function manualWeather(kind){
+  wxAuto = false;
+  setWeather(kind);
+  updateInfo();
+  savePrefs();
+}
+
+function selectCity(ix){
+  city = ix;
+  ownTime = false;
+  followClock = true;
+  hour = localHour(PLACES[ix].tz);
+  cycleOn = false;
+  wxAuto = true;
+  placeTemp = null;
+  placeCode = null;
+  fetchState = "idle";
+  updateClock();
+  syncButtons();
+  layout();
+  ensurePage();
+  refreshWeather();
+  updateInfo();
+  savePrefs();
+}
+
+function toggleOwnTime(){
+  ownTime = !ownTime;
+  followClock = true;
+  hour = ownTime ? ownHour() : localHour(PLACES[city].tz);
+  updateClock();
+  syncButtons();
+  ensurePage();
+  updateInfo();
+  savePrefs();
+}
+
+for(const b of cityBtns) b.addEventListener("click", () => selectCity(+b.dataset.city));
+ownBtn.addEventListener("click", toggleOwnTime);
+for(const b of wxBtns) b.addEventListener("click", () => manualWeather(b.dataset.wx));
+
+hourInput.addEventListener("input", () => {
+  hour = parseFloat(hourInput.value);
+  cycleOn = false;
+  followClock = false;
+  updateClock();
+  syncButtons();
+  savePrefs();
+});
+
+cycleBtn.addEventListener("click", () => {
+  cycleOn = !cycleOn;
+  if(cycleOn) followClock = false;
+  cycleBtn.setAttribute("aria-pressed", String(cycleOn));
+  savePrefs();
+});
+
+/* --------------------------------------------------------------- corner card */
+async function refreshWeather(){
+  const L = PLACES[city];
+  if(!L) return;
+  if(fetchState === "loading") return;
+  fetchState = "loading";
+  updateInfo();
+  try{
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + L.lat +
+                "&longitude=" + L.lon +
+                "&current=weather_code,temperature_2m,cloud_cover&timezone=auto";
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) throw new Error("http " + r.status);
+    const j = await r.json();
+    const cur = (j && j.current) || {};
+    placeCode = Number.isFinite(cur.weather_code) ? Number(cur.weather_code) : null;
+    placeTemp = Number.isFinite(cur.temperature_2m) ? Math.round(cur.temperature_2m) : null;
+    cloudAmt = Number.isFinite(cur.cloud_cover) ? clamp(cur.cloud_cover / 100, 0, 1) : 0;
+    wxAuto = true;
+    setWeather(weatherKind(placeCode));
+    fetchState = "ok";
+    lastFetchAt = Date.now();
+  }catch(e){
+    fetchState = "error";
+  }
+  ensurePage();
+  updateInfo();
+}
+
+function updateInfo(){
+  const place = PLACES[city];
+  const realH = realHour();
+
+  infoPlace.textContent = CITIES[city].name;
+  infoClock.textContent = fmtHour(realH);
+
+  if(wxAuto){
+    infoCond.textContent = fetchState === "loading" ? "Loading\u2026"
+      : placeCode === null ? "\u2014" : condLabel(placeCode);
+  }else{
+    infoCond.textContent = condLabel(wxToCode(currentWx));
+  }
+  infoTemp.textContent = placeTemp === null || !wxAuto ? "" : Math.round(placeTemp) + "\u00b0C";
+
+  const age = lastFetchAt ? Math.round((Date.now() - lastFetchAt) / 60000) : null;
+  infoMeta.textContent = (ownTime ? "own clock" : place.name + " clock") + " \u00b7 " +
+    (!wxAuto ? "weather by hand"
+     : fetchState === "error" ? "offline \u00b7 last known"
+     : fetchState === "loading" ? "fetching\u2026"
+     : fetchState !== "ok" ? "not fetched yet"
+     : "Open-Meteo" + (age === null ? "" : " \u00b7 " + (age < 1 ? "just now" : age + "m ago")));
+
+  infoInk.textContent = HAS_ROUGH ? "ink \u00b7 Rough.js 4.6.6"
+                                  : "ink \u00b7 plain lines \u2014 Rough.js unavailable";
+  infoInk.title = HAS_ROUGH ? "Line work drawn with rough.js"
+                            : "The Rough.js CDN did not load; drawing with plain jittered canvas strokes.";
+
+  const differs = Math.abs(hour - realH) > 0.12;
+  infoScene.hidden = !differs;
+  if(differs) infoScene.textContent = "page " + fmtHour(hour) + (cycleOn ? " \u00b7 cycling" : "");
+
+  const busy = fetchState === "loading";
+  infoRefresh.disabled = busy;
+  infoRefresh.classList.toggle("spin", busy);
+  infoHead.setAttribute("aria-expanded", String(!info.classList.contains("closed")));
+}
+
+function setInfoOpen(open){
+  info.classList.toggle("closed", !open);
+  infoHead.setAttribute("aria-expanded", String(open));
+  savePrefs();
+}
+infoHead.addEventListener("click", () => setInfoOpen(info.classList.contains("closed")));
+infoHead.addEventListener("keydown", e => {
+  if(e.target !== infoHead) return;
+  if(e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  setInfoOpen(info.classList.contains("closed"));
+});
+infoRefresh.addEventListener("click", e => {
+  e.stopPropagation();
+  wxAuto = true;
+  refreshWeather();
+});
+
+setInterval(updateInfo, 1000);
+setInterval(() => {
+  if(cycleOn || !followClock) return;
+  const t = realHour();
+  if(Math.abs(t - hour) > 0.02){
+    hour = t;
+    updateClock();
+    ensurePage();
+  }
+}, 30000);
+setInterval(() => { if(wxAuto) refreshWeather(); }, 15 * 60 * 1000);
+
+/* ---------------------------------------------------------------- prefs ---- */
+const PREF_KEY = "pagoda-sketch.v1";
+let prefTimer = 0;
+function savePrefsSoon(){ clearTimeout(prefTimer); prefTimer = setTimeout(savePrefs, 500); }
+function savePrefs(){
+  try{
+    localStorage.setItem(PREF_KEY, JSON.stringify({
+      hour: hour, cycleOn: cycleOn, wx: currentWx, city: city, ownTime: ownTime,
+      infoOpen: !info.classList.contains("closed")
+    }));
+  }catch(e){}
+}
+let prefsLoaded = false;
+function loadPrefs(){
+  let p = null;
+  try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); }catch(e){}
+  if(!p) return;
+  prefsLoaded = true;
+  if(Number.isFinite(p.hour)) hour = p.hour;
+  if(typeof p.cycleOn === "boolean") cycleOn = p.cycleOn;
+  if(typeof p.ownTime === "boolean") ownTime = p.ownTime;
+  if(Number.isInteger(p.city) && p.city >= 0 && p.city < CITIES.length) city = p.city;
+  if(typeof p.infoOpen === "boolean") info.classList.toggle("closed", !p.infoOpen);
+  setWeather(typeof p.wx === "string" ? p.wx : "clear");
+}
+
+/* ================================================================== resize */
+let resizeTimer = 0;
+
+/* The composition is drawn in a 1240x700 "page". It covers the viewport, but on
+   a portrait phone the page is cropped sideways - so slide the crop over to the
+   landmark of whichever city is open, instead of losing it off the edge. */
+function layout(){
+  K = Math.max(W / DW, H / DH);
+  OX = (W - DW * K) / 2;
+  OY = (H - DH * K) * 0.62;
+  if(OX < 0 && CITIES[city]){
+    OX = clamp(W / 2 - CITIES[city].focus * K, W - DW * K, 0);
+  }
+}
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, isFirefox ? 1.25 : 1.5);
+
+  let w = Math.max(2, Math.floor(innerWidth * DPR));
+  let h = Math.max(2, Math.floor(innerHeight * DPR));
+  const MAXPIX = 6.2e6;
+  if(w * h > MAXPIX){
+    const s = Math.sqrt(MAXPIX / (w * h));
+    w = Math.max(2, Math.floor(w * s));
+    h = Math.max(2, Math.floor(h * s));
+    DPR *= s;
+  }
+  W = w; H = h;
+  cv.width = W; cv.height = H;
+  cv.style.width = innerWidth + "px";
+  cv.style.height = innerHeight + "px";
+
+  layout();
+
+  buildGrain();
+  buildRules();
+  pageCache.clear();
+  pageKey = "";
+  curPage = null;
+  prevPage = null;
+  fadeT = 1;
+  seedParticles();
+}
+
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    resize();
+    ensurePage();
+    drawLive(performance.now(), 0.016);
+  }, 130);
+});
+
+/* ==================================================================== loop */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+  last = now;
+
+  if(cycleOn){
+    hour = (hour + dt * (24 / 420)) % 24;
+    updateClock();
+  }
+
+  updateWeather(dt);
+  const fresh = ensurePage();
+  const moving = !reduceMotion || cycleOn || fadeT < 1 || rainAmt > 0.01 || snowAmt > 0.01 ||
+                 Math.abs(rainTarget - rainAmt) > 0.001 || Math.abs(snowTarget - snowAmt) > 0.001;
+  if(moving || fresh) drawLive(now, dt);
+
+  requestAnimationFrame(frame);
+}
+
+/* ==================================================================== start */
+resize();
+loadPrefs();
+if(!prefsLoaded){
+  hour = ownHour();
+  ownTime = true;
+}
+layout();
+updateClock();
+syncButtons();
+updateInfo();
+ensurePage();
+drawLive(performance.now(), 0.016);
+requestAnimationFrame(frame);
+setTimeout(() => { hint.style.opacity = "0"; }, 15000);
+setTimeout(() => { hint.style.opacity = "0"; }, 26000);
+
+// even in own-time mode the page is a city, so ask for that city's real weather
+refreshWeather();
+</script>
+</body>
+</html>

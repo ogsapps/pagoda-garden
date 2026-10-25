@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagoda garden — style prototypes</title>
+<style>
+  :root{ --ink:#1d2228; --muted:#6b7682; --line:#dfe4ea; --card:#ffffff; --accent:#0c8a60; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#f4f6f8;color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+  main{max-width:1000px;margin:0 auto;padding:40px 20px 70px}
+  h1{font-size:28px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 30px}
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:20px;transition:transform .15s ease, box-shadow .15s ease}
+  a.card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(20,30,40,.10)}
+  .kicker{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  h2{font-size:19px;margin:6px 0 8px}
+  p{margin:0 0 12px;color:var(--muted);font-size:14.5px}
+  .go{color:var(--accent);font-size:14px;font-weight:600}
+  .shots{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin:34px 0 0}
+  .shots img{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
+  .note{margin-top:34px;font-size:13.5px;color:var(--muted)}
+  code{font:13px ui-monospace,Consolas,monospace;background:#eceff3;padding:1px 5px;border-radius:5px}
+  footer{margin-top:40px;font-size:13px;color:var(--muted)}
+  footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Style prototypes</h1>
+  <p class="sub">Three takes on the same brief: the same pagoda garden, five cities, live time and weather. Each is a single self-contained page.</p>
+
+  <div class="grid">
+    <a class="card" href="./silhouette/">
+      <div class="kicker">Canvas 2D · no library</div>
+      <h2>Silhouette parallax</h2>
+      <p>Flat layers drifting at different speeds over a graded sky — the lo-fi background grammar. Skylines are hand-authored silhouettes, so cities read instantly. Nothing rotates.</p>
+      <span class="go">Open prototype →</span>
+    </a>
+    <a class="card" href="./sketch/">
+      <div class="kicker">Rough.js · 9 kB</div>
+      <h2>Travel sketchbook</h2>
+      <p>Every city as a page of ink line work and hachure washes on warm paper. The garden is drawn once per mood and cached; only grain and weather animate. Feels handmade.</p>
+      <span class="go">Open prototype →</span>
+    </a>
+    <a class="card" href="./pixel/">
+      <div class="kicker">480×270 framebuffer · dithered</div>
+      <h2>Pixel window</h2>
+      <p>A low-resolution scene scaled up with nearest-neighbour, seen through a window frame. Ordered Bayer dithering does the gradients; lit windows and lanterns carry the night.</p>
+      <span class="go">Open prototype →</span>
+    </a>
+  </div>
+
+  <div class="shots">
+    <img src="./thumbs/pixel-day.png" alt="Pixel window prototype, day, five cities">
+    <img src="./thumbs/pixel-night.png" alt="Pixel window prototype, night, five cities">
+  </div>
+
+  <p class="note">
+    The pixel frames above are rendered from that prototype's own framebuffer (its preview harness),
+    not from a browser. The branches <code>proto/silhouette</code>, <code>proto/sketch</code> and
+    <code>proto/pixel</code> hold the same files plus their <code>PLAN.md</code>/<code>NOTES.md</code>.
+    The current voxel garden is still the main page: <a href="../">back to it</a>.
+  </p>
+
+  <footer>
+    Each prototype carries over the shared time-of-day table, weather states, corner card with
+    Open-Meteo and <code>Intl</code> city clocks, and prefs in <code>localStorage</code>.
+  </footer>
+</main>
+</body>
+</html>
