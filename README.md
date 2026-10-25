@@ -9,7 +9,7 @@ day/night cycle, weather and procedural ambient audio.
 
 | What | How |
 | --- | --- |
-| Look around | drag (arrow keys not used) |
+| Look around | drag (arrow keys not used). The garden also turns on its own at a constant, very slow rate — one revolution every ~150 s — easing out while you drag and easing back in afterwards. `prefers-reduced-motion` turns the auto-turn off. |
 | Zoom | scroll wheel, pinch, the `−` / `+` buttons, `+` / `-` keys, double-click to reset |
 | Time of day | the time slider, or `cycle` to let a full day pass in seven minutes |
 | Location | `location` picks a city: the scene jumps to that city's local time and its current weather |
