@@ -17,7 +17,7 @@
       backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
       color:#e9eff3;font:13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;
       opacity:0;transition:opacity .45s ease;pointer-events:none;white-space:nowrap;
-      max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
+      width:max-content;max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
   @media (max-width:620px){
     #ui{gap:7px 8px;padding:7px 9px;font-size:12px}
     #hour{width:78px}
@@ -25,7 +25,7 @@
     #hint{display:none}
   }
   #ui.show{opacity:1;pointer-events:auto}
-  #places{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);
+  #places{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);width:max-content;
       display:flex;flex-direction:column;gap:3px;padding:7px;border-radius:13px;
       background:rgba(14,20,26,.74);border:1px solid rgba(255,255,255,.14);
       backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -994,7 +994,14 @@ function selectPlace(ix){
 function openPlaces(open){
   placesEl.hidden = !open;
   placeBtn.setAttribute("aria-expanded", String(open));
-  if(open) showUI();
+  if(open){
+    showUI();
+    // sit just above the bar and centred on the button, whatever the bar wrapped to
+    const bar = ui.getBoundingClientRect();
+    const pb = placeBtn.getBoundingClientRect();
+    placesEl.style.bottom = Math.max(10, Math.round(innerHeight - bar.top + 8)) + "px";
+    placesEl.style.left = Math.round(clamp(pb.left + pb.width / 2, 90, innerWidth - 90)) + "px";
+  }
 }
 placeBtn.addEventListener("click", e => {
   e.stopPropagation();
