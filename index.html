@@ -33,6 +33,34 @@
   #cities{gap:4px}
   #cities button{padding:5px 7px}
   #cities button[aria-pressed="true"]{background:rgba(232,203,132,.17);border-color:rgba(232,203,132,.45);color:#f4e2b4}
+  #cityBtn{padding:5px 9px;color:#eef3f6}
+  #cityMenu{position:fixed;z-index:7;display:flex;flex-direction:column;gap:2px;padding:6px;
+      border-radius:12px;background:rgba(10,14,17,.88);border:1px solid rgba(255,255,255,.14);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      box-shadow:0 14px 34px rgba(0,0,0,.45);min-width:132px}
+  #cityMenu[hidden]{display:none}
+  #cityMenu button{text-align:left;border:0;background:transparent;color:#c6d2d9;padding:6px 10px;
+      border-radius:7px;white-space:nowrap}
+  #cityMenu button:hover{background:rgba(255,255,255,.12);color:#fff}
+  #cityMenu button[aria-pressed="true"]{color:#f4e2b4;background:rgba(232,203,132,.12)}
+  #scrim{position:fixed;left:0;right:0;bottom:0;height:104px;z-index:4;pointer-events:none;
+      background:linear-gradient(to top,rgba(4,7,9,.55),rgba(4,7,9,0))}
+  @media (max-width:760px){
+    #ui{gap:7px 9px;padding:7px 9px;font-size:12px;bottom:10px}
+    #hour{width:78px}
+    #vol{width:52px}
+    #ui .lbl{display:none}
+  }
+  #wxCycle{display:none}
+  @media (max-width:560px){
+    #ui{flex-wrap:wrap;justify-content:center;gap:6px 8px;width:calc(100vw - 12px);padding:7px 9px;bottom:8px}
+    #ui > .grp:first-child{flex-basis:100%;justify-content:center}
+    #ui .grp{justify-content:center}
+    #hour{width:88px}
+    #ui [data-wx]{display:none}
+    #wxCycle{display:inline-flex}
+    #scrim{height:112px}
+  }
   @media (max-width:760px){
     #ui{gap:7px 9px;padding:7px 9px;font-size:12px}
     #hour{width:72px}
@@ -104,15 +132,11 @@
     <button id="cycle" aria-pressed="true" title="Slow day and night cycle">cycle</button>
     <button id="own" aria-pressed="false" title="Use your own clock instead of the city's">own</button>
   </div>
-  <div class="grp" id="cities">
-    <button data-city="vancouver" aria-pressed="true">Vancouver</button>
-    <button data-city="toronto" aria-pressed="false">Toronto</button>
-    <button data-city="hawaii" aria-pressed="false">Hawai&lsquo;i</button>
-    <button data-city="hongkong" aria-pressed="false">Hong Kong</button>
-    <button data-city="amsterdam" aria-pressed="false">Amsterdam</button>
-    <button data-city="sydney" aria-pressed="false">Sydney</button>
+  <div class="grp" id="cityGrp">
+    <button id="cityBtn" aria-haspopup="true" aria-expanded="false" title="Change city">Vancouver &#9662;</button>
   </div>
-  <div class="grp">
+  <div class="grp" id="wxChips">
+    <button id="wxCycle" aria-label="Weather" title="Next weather">clear</button>
     <button data-wx="clear" aria-pressed="true">clear</button>
     <button data-wx="rain" aria-pressed="false">rain</button>
     <button data-wx="snow" aria-pressed="false">snow</button>
@@ -122,6 +146,16 @@
     <input id="vol" type="range" min="0" max="1" step="0.01" value="0.18" aria-label="Volume">
   </div>
 </div>
+
+<div id="cityMenu" hidden>
+  <button data-city="vancouver" aria-pressed="true">Vancouver</button>
+  <button data-city="toronto" aria-pressed="false">Toronto</button>
+  <button data-city="hawaii" aria-pressed="false">Hawai&lsquo;i</button>
+  <button data-city="hongkong" aria-pressed="false">Hong Kong</button>
+  <button data-city="amsterdam" aria-pressed="false">Amsterdam</button>
+  <button data-city="sydney" aria-pressed="false">Sydney</button>
+</div>
+<div id="scrim" aria-hidden="true"></div>
 
 <div id="info">
   <div id="infoHead" role="button" tabindex="0" aria-expanded="true" title="Location, weather and time">
@@ -3203,6 +3237,20 @@ function updateClockLabel(){
   if(clockEl) clockEl.textContent = fmtHour(state.hour);
 }
 
+function paintWeatherCycle(){
+  const b = document.getElementById("wxCycle");
+  if(b) b.textContent = state.wx + " \u25BE";
+}
+function cycleWeather(){
+  const order = ["clear", "rain", "snow"];
+  let i = order.indexOf(state.wx);
+  for(let k = 1; k <= order.length; k++){
+    const nx = order[(i + k) % order.length];
+    if(nx === "snow" && typeof snowAllowed === "function" && !snowAllowed()) continue;
+    setWeather(nx);
+    return;
+  }
+}
 function paintWeatherButtons(){
   for(let i = 0; i < wxBtns.length; i++)
     wxBtns[i].setAttribute("aria-pressed", String(wxBtns[i].dataset.wx === state.wx));
@@ -3251,6 +3299,7 @@ function setCity(id, skipTime){
   placeCode = null;
   for(let i = 0; i < cityBtns.length; i++)
     cityBtns[i].setAttribute("aria-pressed", String(cityBtns[i].dataset.city === id));
+  syncCityLabel();
   syncSnowButton();
 
   if(!skipTime){
@@ -3357,6 +3406,7 @@ function loadPrefs(){
   syncSnowButton();
   updateClockLabel();
   updateInfo();
+  syncCityLabel();
   if(state.own) state.wxAuto = false;
   else refreshWeather();
 }
@@ -3444,6 +3494,13 @@ function measure(){
   allocate(size[0], size[1], pc);
   bx = Math.round((cv.width - size[0] * pc) / 2);
   by = Math.round((cv.height - size[1] * pc) / 2);
+  // portrait windows crop the sides hard; keep the pagoda island (at ~0.215 of the
+  // art width, bottom-left) on screen by shifting the crop toward it
+  if(cv.height > cv.width * 0.95){
+    const want = Math.round(cv.width * 0.30 - size[0] * pc * 0.215);
+    const lowB = cv.width - size[0] * pc;          // most-negative allowed
+    bx = Math.max(lowB, Math.min(0, want));
+  }
   dprNow = dpr;
   layoutGardenLink();
 }
@@ -3621,6 +3678,39 @@ function cycleSessionLength(){
   paintSession();
 })();
 
+/* ------------------------------------------------------------ city dropdown */
+const cityBtnEl = document.getElementById("cityBtn");
+const cityMenuEl = document.getElementById("cityMenu");
+function syncCityLabel(){
+  if(!cityBtnEl) return;
+  const rec = CITY_BY_ID[state.city];
+  cityBtnEl.textContent = (rec ? rec.name : "City") + " \u25BE";
+}
+function cityMenuOpen(){ return !!(cityMenuEl && !cityMenuEl.hidden); }
+function openCityMenu(){
+  if(!cityMenuEl || !cityBtnEl) return;
+  const b = cityBtnEl.getBoundingClientRect();
+  cityMenuEl.hidden = false;
+  const mw = cityMenuEl.offsetWidth || 140;
+  const mh = cityMenuEl.offsetHeight || 200;
+  cityMenuEl.style.left = Math.round(Math.max(8, Math.min(b.left + b.width / 2 - mw / 2, innerWidth - mw - 8))) + "px";
+  cityMenuEl.style.bottom = Math.round(innerHeight - b.top + 8) + "px";
+  cityBtnEl.setAttribute("aria-expanded", "true");
+}
+function closeCityMenu(){
+  if(!cityMenuEl) return;
+  cityMenuEl.hidden = true;
+  if(cityBtnEl) cityBtnEl.setAttribute("aria-expanded", "false");
+}
+function toggleCityMenu(){ cityMenuOpen() ? closeCityMenu() : openCityMenu(); }
+if(cityBtnEl) cityBtnEl.addEventListener("click", e => { e.stopPropagation(); toggleCityMenu(); });
+addEventListener("pointerdown", e => {
+  if(!cityMenuOpen()) return;
+  if(cityMenuEl.contains(e.target) || e.target === cityBtnEl) return;
+  closeCityMenu();
+}, { passive: true });
+addEventListener("keydown", e => { if(e.key === "Escape" && cityMenuOpen()) closeCityMenu(); });
+
 function boot(){
   cv = document.getElementById("scene");
   if(!cv) return;
@@ -3675,8 +3765,10 @@ function boot(){
   ownBtn.addEventListener("click", () => selectOwn(!state.own));
 
   for(let i = 0; i < cityBtns.length; i++){
-    cityBtns[i].addEventListener("click", () => setCity(cityBtns[i].dataset.city, false));
+    cityBtns[i].addEventListener("click", () => { setCity(cityBtns[i].dataset.city, false); closeCityMenu(); });
   }
+  const wxCycleBtn = document.getElementById("wxCycle");
+  if(wxCycleBtn) wxCycleBtn.addEventListener("click", cycleWeather);
   for(let i = 0; i < wxBtns.length; i++){
     wxBtns[i].addEventListener("click", () => manualWeather(wxBtns[i].dataset.wx));
   }
