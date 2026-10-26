@@ -9,7 +9,7 @@ from static files.
 | Page | What it is |
 | --- | --- |
 | [`/`](https://stansz.github.io/pagoda-garden/) | **Pixel city view** — the main page. Six cities, real local clocks, live weather, seasonal trees. Click the pagoda island to enter the garden. |
-| [`/garden/`](https://stansz.github.io/pagoda-garden/garden/) | **The garden** — the 3D voxel pagoda scene, with day/night, weather, ambient audio, and zoom. Opens from the city view and remembers which city sent you. |
+| [`/voxel-garden/`](https://stansz.github.io/pagoda-garden/voxel-garden/) | **The garden** — the 3D voxel pagoda scene, with day/night, weather, ambient audio, and zoom. Opens from the city view and remembers which city sent you. |
 | [`/proto/`](https://stansz.github.io/pagoda-garden/proto/) | Archive of the two losing style prototypes (silhouette parallax, sketchbook). |
 
 ## Controls
@@ -55,7 +55,7 @@ Time, location, weather, volume, zoom and card state are remembered in `localSto
 
 ```
 index.html            pixel city view (main page)
-garden/index.html     voxel garden
+voxel-garden/index.html     voxel garden
 proto/                archived style prototypes + their index
 docs/REFERENCE.md     technical reference
 docs/BUILD-LOG.md     how this got built, decision by decision

@@ -5,7 +5,7 @@ is actually in the repository, not a plan.
 
 ```
 index.html            pixel city view — the front page
-garden/index.html     voxel pagoda garden
+voxel-garden/index.html     voxel pagoda garden
 proto/index.html      archive index for the two losing prototypes
 proto/silhouette/     flat parallax prototype (vanilla canvas)
 proto/sketch/         Rough.js sketchbook prototype (CDN, degrades offline)
@@ -120,7 +120,7 @@ The page exposes `PIXEL` for the capture harness: `render(city, hour, {rain, sno
 
 ---
 
-## 2. Garden (`/garden/index.html`)
+## 2. Garden (`/voxel-garden/index.html`)
 
 ### Scene data
 
