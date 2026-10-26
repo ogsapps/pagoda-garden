@@ -124,6 +124,7 @@
   <button data-place="2">Hawai&lsquo;i</button>
   <button data-place="3">Hong Kong</button>
   <button data-place="4">Amsterdam</button>
+  <button data-place="5">Sydney</button>
 </div>
 
 <div id="info">
@@ -968,6 +969,15 @@ function cityFromQuery(){
   back.hidden = false;
 })();
 
+// Entering from a city sets the garden to that place, so the light and the weather
+// you were just looking at continue indoors. Called once the location list exists.
+function adoptCityFromQuery(){
+  const key = cityFromQuery();
+  if(!key) return;
+  const ix = PLACES.findIndex(p => p.id === key);
+  if(ix >= 0) selectPlace(ix);
+}
+
 function updateClock(){
   const h = ((hour % 24) + 24) % 24;
   const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
@@ -1025,11 +1035,12 @@ for(const b of wxBtns) b.addEventListener("click", () => manualWeather(b.dataset
 // weather simply stays as it was. A city drives the clock and the weather only:
 // the garden itself is always this one garden.
 const PLACES = [
-  { name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
-  { name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
-  { name: "Hawai'i",   lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu" },
-  { name: "Hong Kong", lat: 22.3193, lon: 114.1694,  tz: "Asia/Hong_Kong" },
-  { name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" }
+  { id: "vancouver", name: "Vancouver", lat: 49.2827, lon: -123.1207, tz: "America/Vancouver" },
+  { id: "toronto",   name: "Toronto",   lat: 43.6532, lon: -79.3832,  tz: "America/Toronto" },
+  { id: "hawaii",    name: "Hawai'i",   lat: 21.3069, lon: -157.8583, tz: "Pacific/Honolulu" },
+  { id: "hongkong",  name: "Hong Kong", lat: 22.3193, lon: 114.1694,  tz: "Asia/Hong_Kong" },
+  { id: "amsterdam", name: "Amsterdam", lat: 52.3676, lon: 4.9041,    tz: "Europe/Amsterdam" },
+  { id: "sydney",    name: "Sydney",    lat: -33.8688, lon: 151.2093, tz: "Australia/Sydney" }
 ];
 let placeIx = null, placeTemp = null, cloudAmt = 0, wxAuto = true;
 let placeCode = null, fetchState = "idle", lastFetchAt = 0;
@@ -1297,6 +1308,7 @@ function loadPrefs(){
   updateInfo();
 }
 loadPrefs();
+if(cityFromQuery()) adoptCityFromQuery();      // the URL wins over remembered state
 setTimeout(() => { hint.style.opacity = "0"; }, 14000);
 
 /* -------------------------------------------------------------------- loop */
