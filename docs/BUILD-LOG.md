@@ -71,6 +71,18 @@ chords, tempo, brightness, reverb, pluck pattern — with a glide when you switc
 restart, plus rain/snow/season reactions and a `sound` + volume control in the bar. Verified in a real
 headless engine that the context starts, the profiles differ and the analyser sees signal.
 
+## Oct 25 — focus timer, on a branch
+
+A pomodoro-ish session lives on `feature/focus-timer` (preview at `/focus/`, deleted before
+merge). Design stance from the research pass: a timekeeper, not a productivity app — the corner
+card carries a session row (`focus 50m`, click cycles 50/25), a `▷`/`⏸` in its header and `f`/`Esc`;
+running shows `focus · 18m` and prefixes the tab title. At zero the session becomes a 10-minute
+break (one idempotent advance, never re-fires), and if sound is on a slow tonic pluck marks the
+boundary as a cadence rather than a bell. Deadlines are wall-clock and persisted, so a hidden tab
+or a reload lands in the right state; breaks expire instead of haunting the card. The session's
+half also tints the pad cutoff slightly (focus dimmer, break brighter). Deliberately absent: task
+lists, stats, streaks, badges, notification prompts, countdown rings.
+
 ## Things deliberately not done
 
 - **No bundler, no framework, no build step.** Each page is one self-contained HTML file so it
