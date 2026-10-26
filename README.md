@@ -18,7 +18,7 @@ from static files.
 
 | What | How |
 | --- | --- |
-| City | pick Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam or Sydney from the bottom bar |
+| City | the `Vancouver ▾` button in the bottom bar opens the city list (Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam, Sydney) |
 | Time | the time slider, or `cycle` for a full day in seven minutes |
 | Weather | `clear` / `rain` / `snow` (hand-picked weather leaves location mode, because a city always shows its real sky) |
 | Ambience | `sound` plus a volume slider — each city has its own chord set, tempo, brightness and reverb |

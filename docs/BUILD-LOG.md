@@ -83,6 +83,14 @@ or a reload lands in the right state; breaks expire instead of haunting the card
 half also tints the pad cutoff slightly (focus dimmer, break brighter). Deliberately absent: task
 lists, stats, streaks, badges, notification prompts, countdown rings.
 
+## Oct 26 — small screens
+
+The bottom bar had grown to six city buttons plus time, weather, sound and volume, and on narrow
+windows it wrapped over the pagoda island. The cities became a dropdown, the weather collapsed to a
+single cycling button under 560 px, the bar stacks into two rows there with a scrim behind it, and
+the cover-crop now leans left on portrait windows so the island (the thing you click to enter the
+garden) stays visible. Verified at 390, 430, 820 and 1280 px in a real engine.
+
 ## Things deliberately not done
 
 - **No bundler, no framework, no build step.** Each page is one self-contained HTML file so it

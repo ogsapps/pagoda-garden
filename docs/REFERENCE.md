@@ -111,6 +111,16 @@ master lowpass from 18 kHz to 9 kHz, and the season tints the pad cutoff (±6–
 18 %; the inline analyser (`master → analyser → destination`) feeds `PIXEL.audio().rms` for the
 headless checks.
 
+### Bar layout and small screens
+
+The bottom bar is one row on desktop: time slider + clock + `cycle` + `own`, a `city ▾` dropdown
+(six cities, panel opens above the button and closes on outside click/Escape), weather chips, and
+`sound` + volume. Below 760 px the labels go and the slider tightens; below 560 px the bar becomes
+two rows (time; then city + a single `clear ▾` weather cycler + sound + volume) and the art gets a
+bottom scrim so the controls read over it. Because the scene is cover-cropped, portrait windows
+(`height > 0.95 × width`) bias the crop toward the left so the pagoda island stays on screen and
+clickable.
+
 ### Time, weather, card, `?city=`
 
 `?city=<id>` on load beats `localStorage`; unknown ids fall back. Selecting a city sets the
