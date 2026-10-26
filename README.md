@@ -1,80 +1,77 @@
-# Voxel pagoda garden
+# Pagoda garden
 
-A single-file, no-library, relaxing canvas scene: one voxel pagoda garden with a slow
-day/night cycle, weather and procedural ambient audio.
+A quiet, no-build ambient web toy: six cities you can look out at, and one small voxel
+garden you can step into. Everything is time-of-day and weather aware, and it all runs
+from static files.
 
 **Live:** https://stansz.github.io/pagoda-garden/
 
+| Page | What it is |
+| --- | --- |
+| [`/`](https://stansz.github.io/pagoda-garden/) | **Pixel city view** — the main page. Six cities, real local clocks, live weather, seasonal trees. Click the pagoda island to enter the garden. |
+| [`/garden/`](https://stansz.github.io/pagoda-garden/garden/) | **The garden** — the 3D voxel pagoda scene, with day/night, weather, ambient audio, and zoom. Opens from the city view and remembers which city sent you. |
+| [`/proto/`](https://stansz.github.io/pagoda-garden/proto/) | Archive of the two losing style prototypes (silhouette parallax, sketchbook). |
+
 ## Controls
+
+**City view**
 
 | What | How |
 | --- | --- |
-| Look around | drag (arrow keys not used). The garden also turns on its own at a constant, very slow rate — one revolution every ~150 s — easing out while you drag and easing back in afterwards. `prefers-reduced-motion` turns the auto-turn off. |
-| Zoom | scroll wheel, pinch, the `−` / `+` buttons, `+` / `-` keys, double-click to reset |
-| Time of day | the time slider, or `cycle` to let a full day pass in seven minutes |
-| Location | `location` picks a city: the scene jumps to that city's local time and its current weather |
-| Weather | `clear` / `rain` / `snow` — picking one by hand leaves location mode, because a location always shows its real weather |
-| Ambience | `sound` (browsers need one click before audio can start), volume slider |
-| Corner card | top-left card shows the place, its real local time, the condition, the temperature and where it came from; the `↻` button refetches that city's weather and re-syncs the sky to its clock; click the header to collapse it |
+| City | pick Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam or Sydney from the bottom bar |
+| Time | the time slider, or `cycle` for a full day in seven minutes |
+| Weather | `clear` / `rain` / `snow` (hand-picked weather leaves location mode, because a city always shows its real sky) |
+| Corner card | local time, condition, temperature, season, source; `↻` refetches that city now; click the header to collapse |
+| The garden | click the pagoda island |
 
-Time, location, weather, volume, zoom and the corner card's state are remembered in
-`localStorage`. The controls fade out when you stop touching them; move the pointer to bring
-them back.
+The city page also reads `?city=<id>`, so links can land on a specific city.
 
-### Location mode
+**Garden**
 
-Vancouver, Toronto, Hawai'i, Hong Kong and Amsterdam. The clock comes from `Intl` with the
-city's IANA time zone, so DST is handled and no request is needed. Conditions come from
-[Open-Meteo](https://open-meteo.com/) (`current=weather_code,temperature_2m,cloud_cover`),
-which needs no API key and allows browser requests; the WMO code picks clear / rain / snow
-and the cloud cover flattens the light. It refreshes every 15 minutes and the clock re-syncs
-every 30 seconds. Only the fixed city coordinates are sent — nothing about you. Offline, the
-clock still works and the weather simply stays where it was.
+| What | How |
+| --- | --- |
+| Look around | drag; it also turns slowly on its own (~150 s per revolution) |
+| Zoom | wheel, pinch, `+` / `-` buttons, `+` / `-` keys, double-click to reset |
+| Time | slider or `cycle`; picking a city sets its clock and live weather but keeps the garden itself the same |
+| Ambience | `sound` (browsers need one click), volume slider |
+| Back | a `← back to the city` pill appears when you arrive from the city view |
 
-## What is in the scene
+Time, location, weather, volume, zoom and card state are remembered in `localStorage`.
 
-- ~900 voxels of land and pagoda: a three-tier pagoda on a stone platform, water with lily
-  pads and flowers, a stone path, trees, spire, doorway step.
-- Day/night: sky gradient, sun/moon with a halo, a full-screen tint grade, stars, warm
-  lantern glow at the doorway and path lamps at night, fireflies over the water.
-- Weather: rain (streaks plus a cooler, darker wash) and snow (drifting flakes plus a
-  soft lift), both cross-faded.
-- Audio: a slow four-chord ambient progression (Dmaj9 - Bm7 - Gmaj7 - Aadd9) played by a
-  five-voice pad and a sub bass, with sparse sine "music box" plucks in a D-major pentatonic
-  through a convolution reverb (impulse generated in the page), plus air and a rain bed.
-  Everything runs through a compressor and a soft high shelf, and the default level is quiet
-  (about -49 dBFS RMS at 18% volume) so it can sit in the background all day.
+## How it is built
 
-### This is your garden
+- **Pixel city view** — a ~480×270 pixel framebuffer scaled up with nearest-neighbour and
+  cropped edge to edge; ordered Bayer dithering does the gradients. Cities are records
+  (`CITIES`) with coordinates, time zone, palette, landmark builder and a seasonal tree;
+  seasons come from the city's real local date and hemisphere. Drifting petals, seeds and
+  leaves are emitted from the tree crowns.
+- **Garden** — 874 voxels in one canvas 2D scene, painter-sorted by face-centre depth, with
+  a fixed light, a time-of-day grade, rain/snow particles, pre-rendered glow sprites and a
+  small WebAudio ambient engine (pad, sub, plucks, convolution reverb, compressor).
+- **Both** — the same time-of-day table and the same corner card with `Intl` city clocks and
+  [Open-Meteo](https://open-meteo.com/) conditions (no API key, no account).
 
-The voxel page is deliberately one scene: the pagoda garden, always the same. Picking a city in
-`location` still sets the garden's clock and pulls that city's real weather — the light and the
-sky change, the garden does not.
+## Repository layout
 
-The city views live in the pixel-art page at [`proto/pixel/`](https://stansz.github.io/pagoda-garden/proto/pixel/):
-six cities (Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam, Sydney) seen from outside, each
-with its own skyline and seasonal drift. Click the pagoda island there to **enter the garden**
-(this page), and a small `← back to the city` pill appears here when you arrive that way.
-The URL carries `?city=<id>` in both directions, so the return trip lands on the same city.
+```
+index.html            pixel city view (main page)
+garden/index.html     voxel garden
+proto/                archived style prototypes + their index
+docs/REFERENCE.md     technical reference
+docs/BUILD-LOG.md     how this got built, decision by decision
+docs/pixel-notes.md   the pixel page's own design notes
+docs/shots/           stills from headless renders
+```
 
-## Prototypes
+## Running it locally
 
-Three style prototypes of the same brief live under [`proto/`](https://stansz.github.io/pagoda-garden/proto/)
-with a comparison page. The pixel one is the current favourite and is the one that gained the
-city scenes and the season logic.
+There is no build step and no dependency. Most pages work from `file://` directly; the
+garden and the city view are single self-contained HTML files. The pixel archive's sketch
+prototype loads Rough.js from a CDN and degrades gracefully offline.
 
-## Notes on the rendering
+## Credits
 
-Faces are painter-sorted by face-centre depth. The original scene had the `-z` normal as
-`(0,0,0)` instead of `(0,0,-1)`, so that face's neighbour probe tested the cube itself and
-every `-z` face was culled — that was the "missing side / see-through" bug.
-
-Performance: the voxel layer (sky, faces, grades, stars, sun/moon, lanterns) is painted into
-an offscreen canvas and only rebuilt when the camera, the clock or the weather actually
-changes; the animation loop blits that layer and draws only the moving things (fireflies,
-rain, snow, vignette). Glows are pre-rendered sprites rather than per-frame radial
-gradients. This keeps the page pinned at 60 fps even when it is left open all day.
-
-`pagoda/render-test.mjs` in the authoring workspace runs the page's script against a stubbed
-canvas and asserts the face normals, the neighbour table (`occ`) and the number of faces
-drawn from five camera angles.
+- Conditions by [Open-Meteo](https://open-meteo.com/).
+- The sketch prototype uses [Rough.js](https://roughjs.com/).
+- Started life as a one-shot "voxel pagoda garden" generated by the local model in
+  [Strata](https://github.com/Niko1221/Strata) — see the build log for how it went.
