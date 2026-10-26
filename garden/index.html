@@ -962,7 +962,7 @@ function cityFromQuery(){
   if(!back) return;
   const key = cityFromQuery();
   const referrer = (typeof document !== "undefined" && document.referrer) || "";
-  if(key === null && !/\/pagoda\/?(index\.html)?([?#]|$)/i.test(referrer)) return;
+  if(key === null && !/\/pagoda-garden\/?(index\.html)?([?#]|$)/i.test(referrer)) return;
   back.textContent = "\u2190 back to " + (CITY_NAMES[key] || "the city");
   back.href = "../" + (key ? "?city=" + encodeURIComponent(key) : "");
   back.hidden = false;

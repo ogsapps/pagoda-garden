@@ -2697,6 +2697,7 @@ function updateInfo(){
   const realH = state.own ? ownHour() : localHour(c.tz);
   refreshSeason();
   syncSnowButton();
+  if(gardenLink) gardenLink.href = "./garden/?city=" + encodeURIComponent(id);
 
   infoPlace.textContent = state.own ? "Own time" : c.name;
   infoClock.textContent = fmtHour(realH);
