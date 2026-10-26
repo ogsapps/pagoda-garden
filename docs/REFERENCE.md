@@ -98,6 +98,19 @@ suppress drift (`1 − 2.4·rain − 5·snow`, clamped).
 **Re-bake policy:** `buildScene(id, season)` caches by `(city, season, BW, BH)`. A season change
 re-bakes once; frames never re-bake.
 
+### Audio (city page)
+
+Same engine as the garden (pad + sub + plucks + generated convolution reverb + compressor), but the
+city owns the music through a `MUSIC` table keyed by city id: four chords (`{bass, pad:[5]}`), a
+chord-hold of 11–16 s, a pad cutoff, a pluck scale/tempo, a reverb length/decay/wet, an air level and
+a master trim. Vancouver is mellow/low/slow, Toronto warm mid-tempo, Hawai'i bright and high with
+frequent plucks, Hong Kong dark and reverberant, Amsterdam the slowest and softest, Sydney bright
+major. Changing city while playing glides the existing oscillators (`setTargetAtTime` ~2.5 s) and
+eases cutoff and wet — no restart. Rain follows `state.rainAmt`, snow lifts the air bed and eases a
+master lowpass from 18 kHz to 9 kHz, and the season tints the pad cutoff (±6–12 %). Default volume is
+18 %; the inline analyser (`master → analyser → destination`) feeds `PIXEL.audio().rms` for the
+headless checks.
+
 ### Time, weather, card, `?city=`
 
 `?city=<id>` on load beats `localStorage`; unknown ids fall back. Selecting a city sets the

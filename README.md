@@ -21,6 +21,7 @@ from static files.
 | City | pick Vancouver, Toronto, Hawai'i, Hong Kong, Amsterdam or Sydney from the bottom bar |
 | Time | the time slider, or `cycle` for a full day in seven minutes |
 | Weather | `clear` / `rain` / `snow` (hand-picked weather leaves location mode, because a city always shows its real sky) |
+| Ambience | `sound` plus a volume slider — each city has its own chord set, tempo, brightness and reverb |
 | Corner card | local time, condition, temperature, season, source; `↻` refetches that city now; click the header to collapse |
 | The garden | click the pagoda island |
 
@@ -36,7 +37,8 @@ The city page also reads `?city=<id>`, so links can land on a specific city.
 | Ambience | `sound` (browsers need one click), volume slider |
 | Back | a `← back to the city` pill appears when you arrive from the city view |
 
-Time, location, weather, volume, zoom and card state are remembered in `localStorage`.
+Time, location, weather, volume, sound preference, zoom and card state are remembered in `localStorage`;
+a remembered `sound on` waits for the first click before starting, because browsers require a gesture.
 
 ## How it is built
 

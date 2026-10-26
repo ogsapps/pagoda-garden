@@ -63,6 +63,14 @@ behind `render-test.mjs`.
   kept a `← back to the city` pill. The two losing prototypes were archived under `/proto/`.
   Documentation was split into this log, a technical reference and the pixel page's own notes.
 
+## Oct 25 — ambience reaches the city page
+
+The pixel page had been silent since the prototype round (audio was out of scope for the three style
+prototypes). Ported the garden's WebAudio engine into it and gave each city its own music profile —
+chords, tempo, brightness, reverb, pluck pattern — with a glide when you switch cities rather than a
+restart, plus rain/snow/season reactions and a `sound` + volume control in the bar. Verified in a real
+headless engine that the context starts, the profiles differ and the analyser sees signal.
+
 ## Things deliberately not done
 
 - **No bundler, no framework, no build step.** Each page is one self-contained HTML file so it

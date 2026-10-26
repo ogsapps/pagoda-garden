@@ -6,7 +6,9 @@ cities as the backdrop. `index.html` runs from `file://`, no build step, no impo
 Open it and pick a city from the bottom bar, or link straight to one with `?city=sydney`.
 `shots2/` holds headless renders of the real framebuffer (every PNG is the page's own
 480×240-ish output, upscaled with nearest neighbour) so the art can be reviewed without a
-browser; they are produced by `../scripts/render-pixel.mjs` (see *Harness* below).
+browser; they are produced by `../scripts/render-pixel.mjs` (see *Harness* below). The bar also
+carries a `sound` toggle and a volume slider: the page has a generative ambient engine with one
+music profile per city (see *Sound*), and it only ever starts from a real user gesture.
 
 ## City records
 
@@ -218,6 +220,98 @@ from `file://` and needs no URL API). A known id preselects that city and starts
 time; an unknown id falls back to the saved/last city. `loadPrefs()` gives the URL priority
 over `localStorage`, and a city different from the saved one counts as a fresh selection.
 
+## Sound
+
+Ambient audio, ported from `relax.html`'s engine and adapted so everything hangs off this page's
+`state`: a five-voice washed pad (triangle + slightly detuned sine per voice), a sine sub bass,
+sparse sine "music box" plucks, a generated stereo convolution reverb (the impulse is built in the
+page by `makeImpulse()`, with a darkened tail), a band-passed air bed with a slow filter LFO, and a
+high-pass/low-pass rain bed. The mix runs through a soft high shelf (−2.5 dB @ 5.2 kHz) and a
+compressor (−20 dB, ratio 3) into `master`, which fades the whole thing. `master` feeds an
+`AnalyserNode` **inline** on the way to the destination (`master → analyser → destination`): an
+analyser branch that never reaches the destination is not pulled by WebAudio, so the tap is inline
+and transparent. `PIXEL.audio().rms` reads that analyser.
+
+The scheduler is a 250 ms `setInterval` that looks 2 s ahead: it advances the chord when the hold
+time is up and drops a pluck from the profile's scale at a random gap. Chords glide with
+`setTargetAtTime` (2.4–2.5 s), a port of relax's `applyChord()`.
+
+### Per-city profile — `MUSIC`
+
+One entry per city id. Each has **four chords** (`{bass, pad:[5 freqs]}`; bass 40–100 Hz, pad
+130–590 Hz), a **hold** time (11–16 s), a pad **cutoff**, a pluck **scale**, a **reverb** length /
+decay (+ wet level), an **air** level, and (extra, data-only) a pluck **tempo** (`pluckEvery`
+min/max gap), a pluck amplitude and a master **level** trim. `musicFor(id)` falls back to Vancouver
+for an unknown id, so a missing record can never crash the page.
+
+| city | profile | chords (key) | hold | cutoff | reverb (s/decay) | air | pluck gap | character |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| vancouver | `vancouver · mellow low` | Dmaj9 / Bm7 / Gmaj7 / Aadd9 | 15.5 s | 900 Hz | 3.2 / 2.6 | 0.040 | 5.0–10.0 s | low register, long holds, sparse plucks, quiet trim — rain-coast mellow |
+| toronto | `toronto · warm mid` | Cmaj7 / Am7 / Fmaj7 / G6 | 12.5 s | 1250 Hz | 2.6 / 2.2 | 0.048 | 3.2–7.0 s | mid tempo, warm C-major pads, moderate air |
+| hawaii | `hawaii · bright trades` | Gmaj9 / Em7 / C6 / D6/9 | 11.5 s | 2600 Hz | 2.2 / 2.0 | 0.060 | 1.8–4.2 s | highest voicing (basses 65–98 Hz), bright open cutoff, most frequent plucks, full level |
+| hongkong | `hongkong · harbour dark` | Dm9 / Bbmaj7 / Gm7 / Aø7 | 15.0 s | 720 Hz | 4.2 / 3.2 | 0.038 | 6.0–11.0 s | darkest cutoff, longest/most reverb, slow, low and close |
+| amsterdam | `amsterdam · canal hush` | Fmaj9 / Dm7 / Bbmaj7 / Csus2 | 16.0 s | 780 Hz | 3.6 / 2.8 | 0.030 | 7.0–12.0 s | slowest chord hold, sparsest plucks, least air, lowest master trim — softest |
+| sydney | `sydney · bright major` | Amaj9 / F#m7 / Dmaj7 / E6/9 | 12.0 s | 2000 Hz | 2.8 / 2.3 | 0.055 | 2.6–5.8 s | A-major/pentatonic plucks, bright open pad, mid tempo |
+
+The pluck scales are diatonic/pentatonic pools in each profile's key (D major for Vancouver, C
+major for Toronto, G major for Hawai'i, D minor pentatonic for Hong Kong, F major for Amsterdam,
+A major for Sydney), so plucks always land inside the pad harmony even though they never follow the
+chord changes.
+
+### City change, weather and seasons
+
+`setCity()` calls `applyProfile()` when sound is on. That glides the five pad voices (and their
++0.35 % detune partner) and the sub to the new profile's current chord with
+`setTargetAtTime(..., 2.5)` / `(...2.4)`, eases the pad cutoff to the new profile, swaps the
+convolver impulse for the new reverb length/decay, eases the reverb wet and the master trim —
+**no oscillator is rebuilt and nothing restarts**; the scheduler simply reads the new scale and
+hold next time round, and `chordIx` is kept so the pad lands on the same chord number in the new
+progression.
+
+`drawFrame()` calls `updateAudio()` every frame (a no-op until sound has been started once), so
+every render path keeps the beds in step:
+
+- **rain**: rain-bed gain `state.rainAmt * 0.085` (0 → 0.085 across the weather cross-fade);
+- **air**: `profile.air + snowAmt * 0.02 + rainAmt * 0.012` (snow lifts the bed, rain a little);
+- **snow top end**: a master lowpass eases 18 kHz → 9 kHz with `snowAmt` (a little top end off);
+- **season tint**: the pad cutoff is multiplied by `spring 1.06 / summer 1.00 / autumn 0.94 /
+  winter 0.88`; it only re-targets when the value drifts >3 %, so the per-frame cost is three
+  `setTargetAtTime` calls plus that cutoff one now and then.
+
+### UI and prefs
+
+A `sound` button (`#snd`) and a small `#vol` range (0–1) live in a new `.grp` in the bottom bar
+right after the weather buttons, using the bar's existing button/range styling and lowercase
+labels. The button reads `sound` / `sound on`, and `aria-pressed` follows whether sound is enabled
+(including the armed-but-waiting state).
+
+Audio is only ever created from a real gesture:
+
+- clicking the button runs `setSoundOn(!soundOn)`: `startSound()` creates the context, calls
+  `resume()`, applies the city profile, picks a random starting chord and starts the scheduler;
+  `stopSound()` fades the master to 0 and stops the scheduler but keeps the graph built, so
+  restarting is instant and never makes a second context;
+- the volume slider sets `vol` and, while playing, re-targets the master
+  (`vol * 0.5 * profile.level`) with a 0.2 s glide; it is saved on input;
+- prefs stay in the existing `pagoda-pixel-window.v1` key with two new fields: `vol` (default
+  0.18) and `soundOn` (the on/off *preference*). A stored `soundOn: true` does **not** autoplay:
+  `armGestureStart()` installs a one-shot capture-phase `pointerdown` listener on `window`, shows
+  the button as enabled, and the first click/tap anywhere starts the engine with the saved city and
+  volume. The click that follows that same pointerdown is guarded (time-bounded) so it cannot
+  toggle the sound straight back off, and starting/stopping by any other route (e.g. Enter on the
+  button) disarms the listener.
+
+### Headless hook
+
+`PIXEL.audio()` returns `{ state, on, armed, city, profile, rms, chord, chords, hold, cutoff,
+tone, scale, reverb, air, vol, gains:{master,rain,air} }` — `state` is the AudioContext state
+(`"none"` before any gesture, `"running"` once started), `on` the toggle, `profile` the current
+city's profile name, `rms` a short RMS off the master mix via the analyser. Helpers:
+`PIXEL.audioProfile(id)` (any city's profile, copied), `PIXEL.audioUpdate()` (run one weather tick
+and read back), `PIXEL.audioToggle()` and `PIXEL.selectCity(id)` (a city switch, including the
+glide). `PIXEL.render()` / `PIXEL.frame()` also run `updateAudio()`, so a headless
+`render(..., { rain: 1 })` moves the rain bed.
+
 ## How it is drawn
 
 **One framebuffer, integer scale.** The scene is painted into an offscreen canvas of roughly
@@ -268,7 +362,12 @@ blits it — pre-existing dead code, kept in sync rather than removed (see *Unfi
   city clocks, `↻` refresh, collapsible, "Offline · last known" when the fetch fails, plus a
   season line.
 - Six cities + own-time mode (`own` button: your clock, weather by hand).
-- Prefs in `localStorage` under `pagoda-pixel-window.v1` (still v1: `city` is the record id).
+- Prefs in `localStorage` under `pagoda-pixel-window.v1` (still v1: `city` is the record id;
+  the audio port added `vol` and `soundOn`).
+- The ambient engine is ported from `relax.html` (`audioInit()`, `PROG`→`MUSIC`, `pluck()`,
+  `applyChord()`, `scheduler()`, `startSound()` / `stopSound()`, `updateAudio()`, the generated
+  impulse, compressor + high shelf and the rain bed), with the per-city profile and an
+  `AnalyserNode` added.
 - `prefers-reduced-motion`: no parallax, no drifting clouds, no bird flock, drift and clock
   cycle start off, no hint transition. Firefox caps DPR at 1.25 (as `relax.html` does).
 
@@ -310,6 +409,38 @@ on its own (a parse failure fails the run). `node scripts/render-pixel.mjs` (fro
 
 Exits non-zero on any failed check.
 
+`node scripts/audio-check.mjs` (from `pagoda/`) is the audio harness. It runs the page's inline
+script against a **stubbed DOM + canvas shim and a minimal fake `AudioContext`** (nodes count
+themselves, `AudioParam`s record every automation call, and the fake `AnalyserNode` is tapped off
+the fake master gain so its RMS follows what the master would output), then drives the real
+engine through `PIXEL.audio()`:
+
+1. static checks on the markup — `#snd` is a lowercase `sound` button, `#vol` is a 0–1 range with
+   an accessible name, both sit in the bar after the weather buttons and are styled like the bar;
+2. before any gesture: no AudioContext, `state === "none"`, `on === false`, `rms === 0`;
+3. clicking the button: one context in `"running"`, `on`, master audible, `rms > 0`, the full graph
+   (convolver, compressor, analyser, 12 oscillators, 6 filters, 2 buffer sources, 16 gains, the
+   generated buffers), a 250 ms scheduler, and the `vol`/`soundOn` prefs persisted; a volume change
+   reaches the master; a fake-time scheduler tick advances the chord and adds a pluck;
+4. all six profiles: four chords, five pad voices each in a sane register, bass 35–110 Hz, hold
+   11–16 s, cutoff/scale/reverb/air set, six distinct chord sets, hold times and tempos, plus the
+   character rules (Amsterdam slowest/softest, Hong Kong darkest/most reverb, Hawai'i highest and
+   most frequent plucks, Vancouver slow and low, Sydney bright major mid tempo, Toronto mid);
+5. a city change while playing: same context, no new oscillators, nothing restarted, the new
+   profile name and one of its chords are reported, the 2.5 s `setTargetAtTime` glide events target
+   every new pad voice (+ detune) and the cutoff eased to the new profile;
+6. weather: rain gain 0 → 0.085 at `rainAmt` 1 (0.0425 at 0.5), snow raises the air bed by 0.02 and
+   eases the top end 18 kHz → 9 kHz; toggle off silences the master and the RMS, toggle on is
+   audible again (same context);
+7. a page with no `AudioContext` at all degrades: the button click is a no-op, the page still
+   renders a frame and no exception escapes;
+8. a stored `soundOn: true` does not autoplay (no context), is armed, starts on the first
+   `pointerdown` with the saved city/volume, and the click that follows that pointerdown does not
+   toggle it off; keyboard activation while armed starts it and disarms the wait.
+
+It prints the profile table, graph node counts, RMS/master measurements, the city-change numbers
+and the weather gains, and exits non-zero on any failed check.
+
 ## Cost
 
 Measured on the real draw path (headless, counting canvas calls per frame):
@@ -327,6 +458,11 @@ only on city switch or resize. City layers bake once per (city, season, buffer s
 one-frame hitch on switching city **and** on a season rollover, which happens at most a few
 times per session and is guarded to fire exactly once. Buffer size is capped at ~300k art
 pixels.
+
+With sound on, `updateAudio()` adds two or three `setTargetAtTime` calls per frame (rain, air,
+tone, and the pad cutoff only when it drifts >3 %) — the same cadence as `relax.html`'s loop,
+so the visual frame cost is unchanged. With sound off it returns immediately. The impulse and
+noise buffers are generated once at init (impulse again, not noise, on a city change).
 
 ## Unfinished / weak spots
 
@@ -358,7 +494,14 @@ pixels.
 - Live weather only distinguishes clear/rain/snow; fog and overcast are folded into the cloud
   grade.
 - `sillCv` is baked and never drawn (pre-existing dead code).
-- No audio (deliberately out of scope for the prototypes).
+- **The sound is one generative engine, not music.** Four chords and one scale per city, no
+  melody: the city character lives in register, cutoff, reverb, air and pluck tempo. It is meant to
+  sit under the page for a long time, which is also why the default level is low.
+- **The reverb buffer is swapped, not cross-faded, on a city change.** The old tail is cut when
+  the convolver gets the new profile's impulse. At a 0.30–0.46 wet level this was judged inaudible
+  in principle, but it was not listened to; a proper crossfade would need two convolvers.
+- **No audio state in the corner card.** The bar shows only `sound` / `sound on` and a volume
+  slider; there is no "now playing" line (the profile name is only on `PIXEL.audio()`).
 
 ## What I could not verify
 
@@ -385,6 +528,24 @@ pixels.
   observed live. Similarly the rollover was not watched together with live weather.
 - **Snow-suppressed drift by eye.** The scalar is checked and the snow sheet shows the bare
   trees, but "no petals under snow" was verified as numbers/one capture, not a live snowfall.
+- **The actual sound.** The headless run has no WebAudio and no audio device: the graph, the
+  automation targets and an RMS *proxy* are asserted against a fake `AudioContext`, but the mix was
+  never listened to. Pad/pluck balance, reverb wetness, whether the snow top-end dulling reads,
+  whether a city change really glides without a click, and whether the six profiles feel distinct
+  by ear need a real browser and speakers/headphones.
+- **Browser autoplay policy.** The gesture path is asserted in the shim (no context on load, first
+  `pointerdown` starts it), but whether Chrome/Safari actually unlock the context on that event,
+  whether `resume()` resolves promptly, and how mobile Safari treats the pointerdown/click pair
+  were not exercised in a real browser.
+- **The analyser tap.** `master → AnalyserNode → destination` and `getFloatTimeDomainData()` were
+  only run against the fake; real RMS values, and whether the inline analyser stays transparent,
+  were not observed.
+- **The new bar group by eye.** The sound button + 62 px slider were styled to match the bar and
+  measured only by reading the CSS; the bar is `flex-wrap`, but how the extra group wraps at
+  narrow widths / large font sizes was not screenshotted.
+- **Volume/on-off round trip across reloads.** Prefs are asserted in the shim's localStorage, but
+  a real reload with `soundOn: true` (armed, then first gesture) was not driven in a browser.
+- **Convolver buffer swap while sounding.** Not heard; see *Unfinished*.
 
 ## Ideas worth keeping
 
