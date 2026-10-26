@@ -63,6 +63,13 @@
   #infoBody{padding:0 11px 9px;display:flex;flex-direction:column;gap:3px}
   #info.closed #infoBody{display:none}
   #infoBody .row{display:flex;gap:6px;align-items:baseline}
+  #infoPlay{background:transparent;border:0;color:#93a6b3;font:inherit;line-height:1;
+      padding:1px 3px;margin:0 2px 0 0;cursor:pointer;border-radius:6px;display:inline-flex;align-items:center}
+  #infoPlay:hover{color:#fff;background:rgba(255,255,255,.12)}
+  #infoPlay[data-on="true"]{color:#e8cb84}
+  #infoSession{color:#e8cb84;font-variant-numeric:tabular-nums;cursor:pointer}
+  #infoSession.break{color:#9fd0b8}
+  #infoSession.muted{color:#93a6b3}
   #infoBody .muted{color:#8798a2;font-size:11.5px;line-height:1.35}
   @media (max-width:760px){ #info{top:10px;left:10px;min-width:150px} }
 
@@ -120,6 +127,7 @@
   <div id="infoHead" role="button" tabindex="0" aria-expanded="true" title="Location, weather and time">
     <span id="infoPlace">Vancouver</span>
     <span id="infoClock">--:--</span>
+    <button id="infoPlay" aria-label="Start a focus session" title="Start a focus session (f)">&#9655;</button>
     <button id="infoRefresh" aria-label="Refresh weather" title="Refresh weather now">&#8635;</button>
     <span class="chev" aria-hidden="true">&#9660;</span>
   </div>
@@ -128,6 +136,7 @@
     <div class="row muted" id="infoSeason"></div>
     <div class="row muted" id="infoMeta"></div>
     <div class="row muted" id="infoScene" hidden></div>
+    <div class="row" id="infoSession"></div>
   </div>
 </div>
 
@@ -3059,7 +3068,9 @@ function updateAudio(){
   if(toneFilter)
     toneFilter.frequency.setTargetAtTime(lerp(18000, 9000, clamp(state.snowAmt, 0, 1)), t, 1.2);
   if(padFilter){
-    const want = prof.cutoff * seasonCut();
+    // the session's half colours the room slightly: focus dimmer, break brighter
+    const phase = session.kind === "focus" ? 0.90 : session.kind === "break" ? 1.14 : 1;
+    const want = prof.cutoff * seasonCut() * phase;
     if(Math.abs(padFilter.frequency.value - want) > want * 0.03)
       padFilter.frequency.setTargetAtTime(want, t, 1.2);
   }
@@ -3185,6 +3196,7 @@ function updateInfo(){
   infoRefresh.classList.toggle("spin", busy);
   infoRefresh.title = state.own ? "Pick a city to see its live weather" : "Refresh this city now";
   infoHead.setAttribute("aria-expanded", String(!infoEl.classList.contains("closed")));
+  tickSession();
 }
 
 function updateClockLabel(){
@@ -3301,7 +3313,8 @@ function savePrefs(){
       city: state.city, hour: +state.hour.toFixed(3), cycleOn: state.cycleOn,
       own: state.own, wx: state.wx, vol: +vol.toFixed(3),
       soundOn: soundWanted || soundOn,
-      infoOpen: !infoEl.classList.contains("closed")
+      infoOpen: !infoEl.classList.contains("closed"),
+      session: sessionSave()
     }));
   }catch(e){}
 }
@@ -3317,6 +3330,7 @@ function loadPrefs(){
   if(pr && typeof pr.cycleOn === "boolean") state.cycleOn = pr.cycleOn && !reduceMotion;
   if(pr && typeof pr.own === "boolean") state.own = pr.own;
   if(pr && typeof pr.infoOpen === "boolean") infoEl.classList.toggle("closed", !pr.infoOpen);
+  if(pr) restoreSession(pr.session);
   if(pr && Number.isFinite(pr.hour)) state.hour = pr.hour;
   // sound: the level is remembered, and "on" is remembered as an intent that
   // is only honoured on the first gesture (never autoplay)
@@ -3461,6 +3475,152 @@ function layoutGardenLink(){
   gardenLink.style.height = Math.round(h) + "px";
 }
 
+/* =========================================================================
+   Focus session — a timekeeper, not a productivity app.  The card carries it;
+   no panels, no rings, no notifications.  Deadlines only (wall clock), so a
+   hidden tab or a reload lands in the right state.
+   ========================================================================= */
+const BASE_TITLE = (typeof document !== "undefined" && document.title) || "";
+const FOCUS_LENGTHS = [50, 25];              // click the idle row to cycle
+const BREAK_MIN = 10;
+const session = { kind: "idle", lenMin: 50, endAt: 0, startedAt: 0, marks: 0, endedAt: 0 };
+
+function sessionMinLeft(){
+  return Math.max(0, Math.ceil((session.endAt - Date.now()) / 60000));
+}
+function sessionSave(){
+  return { kind: session.kind, lenMin: session.lenMin, endAt: session.endAt, startedAt: session.startedAt, marks: session.marks };
+}
+function restoreSession(pr){
+  if(!pr || typeof pr !== "object") return;
+  if(Number.isFinite(pr.lenMin) && pr.lenMin > 0) session.lenMin = pr.lenMin;
+  if(Number.isInteger(pr.marks)) session.marks = pr.marks;
+  const kind = pr.kind === "focus" || pr.kind === "break" ? pr.kind : "idle";
+  const endAt = Number(pr.endAt) || 0;
+  if(kind === "idle" || !endAt) return;
+  const slack = 120000;                       // two minutes of grace for a reload
+  if(endAt < Date.now() - slack){ session.kind = "idle"; session.endAt = 0; return; }
+  session.kind = kind;
+  session.endAt = endAt;
+  session.startedAt = Number(pr.startedAt) || Date.now();
+}
+
+function paintSession(){
+  const row = document.getElementById("infoSession");
+  const play = document.getElementById("infoPlay");
+  const now = Date.now();
+  let text = "";
+  let cls = "";
+  if(session.kind === "focus"){
+    text = "focus · " + sessionMinLeft() + "m";
+  }else if(session.kind === "break"){
+    text = "break · " + sessionMinLeft() + "m";
+    cls = "break";
+  }else if(session.endedAt && now - session.endedAt < 90000){
+    const m = Math.round((now - session.endedAt) / 60000);
+    text = "break ended " + (m < 1 ? "just now" : m + "m ago");
+    cls = "muted";
+  }else{
+    text = "focus " + session.lenMin + "m";
+    cls = "muted";
+  }
+  if(row){
+    row.textContent = text;
+    row.className = "row " + cls;
+    row.title = session.kind === "idle" ? "Start a " + session.lenMin + " minute session (click to cycle 50/25)"
+      : "Stop this session";
+  }
+  if(play){
+    play.textContent = session.kind === "idle" ? "\u25B7" : "\u23F8";
+    play.dataset.on = String(session.kind === "focus");
+    play.title = session.kind === "idle" ? "Start a focus session (f)" : "Stop (Esc)";
+    play.setAttribute("aria-label", session.kind === "idle" ? "Start a focus session" : "Stop the session");
+  }
+  paintTitle();
+}
+function paintTitle(){
+  if(typeof document === "undefined") return;
+  let prefix = "";
+  if(session.kind === "focus") prefix = sessionMinLeft() + "m · ";
+  else if(session.kind === "break") prefix = "break " + sessionMinLeft() + "m · ";
+  document.title = prefix + BASE_TITLE;
+}
+function playCadence(){
+  if(!soundOn || !ac || typeof pluck !== "function") return;
+  try{
+    const prof = musicProfile();
+    const root = prof.chords[0].bass * 2;      // a slow tonic, an octave up
+    pluck(root, ac.currentTime + 0.06, prof);
+  }catch(e){}
+  try{ savePrefs(); }catch(e){}
+}
+function advanceSession(){
+  const now = Date.now();
+  if(session.kind === "focus"){
+    session.marks++;                           // one mark per completed focus
+    session.kind = "break";
+    session.startedAt = now;
+    session.endAt = now + BREAK_MIN * 60000;
+    playCadence();
+  }else if(session.kind === "break"){
+    session.kind = "idle";
+    session.endAt = 0;
+    session.endedAt = now;
+  }
+  try{ savePrefs(); }catch(e){}
+}
+function tickSession(){
+  if(session.kind !== "idle" && session.endAt && Date.now() >= session.endAt) advanceSession();
+  paintSession();
+}
+function startSession(min){
+  if(session.kind !== "idle") return false;
+  session.lenMin = Number.isFinite(min) && min > 0 ? min : session.lenMin;
+  session.kind = "focus";
+  session.startedAt = Date.now();
+  session.endAt = session.startedAt + session.lenMin * 60000;
+  session.endedAt = 0;
+  tickSession();
+  try{ savePrefs(); }catch(e){}
+  return true;
+}
+function stopSession(){
+  session.kind = "idle";
+  session.endAt = 0;
+  session.endedAt = 0;
+  tickSession();
+  try{ savePrefs(); }catch(e){}
+}
+function toggleSession(){
+  if(session.kind === "idle") return startSession();
+  stopSession();
+  return false;
+}
+function cycleSessionLength(){
+  if(session.kind !== "idle") return;
+  session.lenMin = session.lenMin === 50 ? 25 : 50;
+  session.endedAt = 0;                         // the new length is what you should see
+  paintSession();
+  try{ savePrefs(); }catch(e){}
+}
+(function wireSession(){
+  const play = document.getElementById("infoPlay");
+  const row = document.getElementById("infoSession");
+  if(play) play.addEventListener("click", e => { e.stopPropagation(); toggleSession(); });
+  if(row) row.addEventListener("click", e => {
+    e.stopPropagation();
+    if(session.kind === "idle") cycleSessionLength(); else stopSession();
+  });
+  addEventListener("keydown", e => {
+    const t = e.target;
+    if(t && /input|textarea|select/i.test(t.tagName || "")) return;
+    if(e.key === "f" || e.key === "F"){ e.preventDefault(); toggleSession(); }
+    else if(e.key === "Escape"){ if(session.kind !== "idle"){ e.preventDefault(); stopSession(); } }
+  });
+  addEventListener("pagehide", () => { try{ savePrefs(); }catch(e){} });
+  paintSession();
+})();
+
 function boot(){
   cv = document.getElementById("scene");
   if(!cv) return;
@@ -3560,7 +3720,8 @@ function boot(){
   if(volInput) volInput.value = String(vol);
   paintSoundButton();
   if(soundWanted) armGestureStart();   // never autoplay: wait for the first gesture
-  setInterval(updateInfo, 1000);
+  
+setInterval(updateInfo, 1000);
   setInterval(() => { if(!state.own && state.wxAuto) refreshWeather(); }, 15 * 60 * 1000);
   requestAnimationFrame(tick);
 }
@@ -3661,6 +3822,15 @@ const PIXEL = {
   },
   audioUpdate(){ updateAudio(); return PIXEL.audio(); },
   audioToggle(){ return setSoundOn(!soundOn); },
+  session: {
+    get(){ return { kind: session.kind, lenMin: session.lenMin, leftMs: Math.max(0, session.endAt - Date.now()),
+                    marks: session.marks, title: document.title }; },
+    start(min){ return startSession(min); },
+    stop(){ stopSession(); },
+    tick(){ tickSession(); },
+    endIn(ms){ session.endAt = Date.now() + Math.max(0, ms); },
+    row(){ const r = document.getElementById("infoSession"); return r ? r.textContent : null; }
+  },
   selectCity(id){ if(CITY_BY_ID[id]) setCity(id, true); return state.city; }
 };
 if(typeof globalThis !== "undefined") globalThis.PIXEL = PIXEL;
