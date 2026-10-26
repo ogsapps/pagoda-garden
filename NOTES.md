@@ -41,11 +41,11 @@ unknown id can never crash a render).
 | id | name | tz | palette | landmark | drift | tree | per-city rule |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | vancouver | Vancouver | America/Vancouver | `PAL.vancouver` | vancouver | vancouver | cherry (mid) | — |
-| toronto | Toronto | America/Toronto | `PAL.toronto` | toronto | toronto | 2 maples (near) | — |
+| toronto | Toronto | America/Toronto | `PAL.toronto` | toronto | toronto | 2 maples (mid) | — |
 | hawaii | Hawai'i | Pacific/Honolulu | `PAL.hawaii` | hawaii | hawaii | plumeria shrub (mid) | — |
 | hongkong | Hong Kong | Asia/Hong_Kong | `PAL.hongkong` | hongkong | hongkong | bauhinia (mid) | — |
 | amsterdam | Amsterdam | Europe/Amsterdam | `PAL.amsterdam` | amsterdam | amsterdam | 2 elms (mid) | — |
-| sydney | Sydney | Australia/Sydney | `PAL.sydney` | sydney | sydney | 2 jacarandas (near) | `noSnow: ["summer"]` |
+| sydney | Sydney | Australia/Sydney | `PAL.sydney` | sydney | sydney | 2 jacarandas (mid) | `noSnow: ["summer"]` |
 
 ## Seasons
 
@@ -94,8 +94,9 @@ exactly once — switching city is the same one-off cost.
 ## Source trees
 
 Every city now has one tree species on its record (`city.tree`) that is part of the baked art
-and is the source of the drift particles. It lives in the near layer when it is a foreground
-tree (Toronto's maples, Sydney's jacarandas) and in the mid layer when it stands on the far
+and is the source of the drift particles. Every city's tree lives in the **mid** layer at the
+same screen slot (single trunks at `x: 0.79`, pairs at `0.72` and `0.84`, `baseY: 0.665`), so the
+near band stays the garden's; the old near-layer placement (Toronto's island, Sydney's quay) was
 shore / canal bank (Vancouver, Hawai'i, Hong Kong, Amsterdam), so its trunk roots at the
 waterline and the water pass hides the foot.
 
@@ -117,11 +118,11 @@ winter only) that `drawFrame` fades in with `snowAmt` — so weather never trigg
 | city | kind | layer | x (fraction of BW) | spring | summer | autumn | winter |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | vancouver | cherry | mid (far shore) | 0.865 | pale pink blossom + white petal dots | dark fir-green canopy | amber with gaps | bare branches |
-| toronto | maple | near (island bank) | 0.762, 0.868 | pale pink blossom | full green | amber/rust with gaps | bare branches + snow hint |
+| toronto | maple | mid | 0.72, 0.84 | pale pink blossom | full green | amber/rust with gaps | bare branches + snow hint |
 | hawaii | plumeria shrub | mid (beach) | 0.470 | heavy pink bloom | full green + cream blooms | olive with gaps, sparse blooms | evergreen, darker green, a few blooms |
 | hongkong | bauhinia | mid (promenade) | 0.720 | orchid-pink blossom | full green | amber, sparse | bare-ish (a few twig tufts) |
 | amsterdam | elm | mid (canal bank) | 0.400, 0.585 | pale samara green | deep green | amber with gaps | bare branches |
-| sydney | jacaranda | near (sandstone quay) | 0.680, 0.810 | **purple** blossom (Oct) | green | thinned olive, big gaps | bare-ish + 2 tufts |
+| sydney | jacaranda | mid | 0.72, 0.84 | **purple** blossom (Oct) | green | thinned olive, big gaps | bare-ish + 2 tufts |
 
 Two compromises are deliberate and worth flagging:
 
