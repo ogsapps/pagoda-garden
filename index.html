@@ -2697,7 +2697,6 @@ function updateInfo(){
   const realH = state.own ? ownHour() : localHour(c.tz);
   refreshSeason();
   syncSnowButton();
-  if(gardenLink) gardenLink.href = "./garden/?city=" + encodeURIComponent(id);
 
   infoPlace.textContent = state.own ? "Own time" : c.name;
   infoClock.textContent = fmtHour(realH);
@@ -2775,6 +2774,7 @@ function manualWeather(which){
 function setCity(id, skipTime){
   if(!CITY_BY_ID[id]) id = CITIES[0].id;
   state.city = id;
+  if(gardenLink) gardenLink.href = "./garden/?city=" + encodeURIComponent(state.city);
   refreshSeason();
   buildScene(id);
   buildSill(id);
@@ -3019,6 +3019,7 @@ function boot(){
   infoSceneEl = document.getElementById("infoScene");
   infoSeasonEl = document.getElementById("infoSeason");
   gardenLink = document.getElementById("gardenLink");
+  if(gardenLink) gardenLink.href = "./garden/?city=" + encodeURIComponent(state.city);
   for(let i = 0; i < wxBtns.length; i++)
     if(wxBtns[i].dataset.wx === "snow") snowBtn = wxBtns[i];
 
