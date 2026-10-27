@@ -200,9 +200,11 @@ Run them from the `pagoda` authoring folder with `node <script>`.
 
 ## 4. Deployment
 
-GitHub Pages serves `main` from the repository root (`https://stansz.github.io/pagoda-garden/`).
-Publishing is: commit the changed files, push, then wait for
-`gh api repos/stansz/pagoda-garden/pages/builds/latest` to report `built` for that commit.
+GitHub Pages serves this repository at `https://ogsapps.github.io/pagoda-garden/`, deployed by
+`.github/workflows/deploy.yml` (GitHub Actions, not the legacy branch build): the `check` job runs
+`scripts/check-site.mjs`, then the `deploy` job publishes the tracked files at the repository root.
+Publishing is: commit the changed files, push to `main`, then wait for the "Deploy to GitHub Pages"
+run to report success.
 Feature work from the prototype phase is kept on `proto/silhouette`, `proto/sketch` and
 `proto/pixel` branches.
 

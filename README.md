@@ -4,13 +4,13 @@ A quiet, no-build ambient web toy: six cities you can look out at, and one small
 garden you can step into. Everything is time-of-day and weather aware, and it all runs
 from static files.
 
-**Live:** https://stansz.github.io/pagoda-garden/
+**Live:** https://ogsapps.github.io/pagoda-garden/
 
 | Page | What it is |
 | --- | --- |
-| [`/`](https://stansz.github.io/pagoda-garden/) | **Pixel city view** — the main page. Six cities, real local clocks, live weather, seasonal trees. Click the pagoda island to enter the garden. |
-| [`/voxel-garden/`](https://stansz.github.io/pagoda-garden/voxel-garden/) | **The garden** — the 3D voxel pagoda scene, with day/night, weather, ambient audio, and zoom. Opens from the city view and remembers which city sent you. |
-| [`/proto/`](https://stansz.github.io/pagoda-garden/proto/) | Archive of the two losing style prototypes (silhouette parallax, sketchbook). |
+| [`/`](https://ogsapps.github.io/pagoda-garden/) | **Pixel city view** — the main page. Six cities, real local clocks, live weather, seasonal trees. Click the pagoda island to enter the garden. |
+| [`/voxel-garden/`](https://ogsapps.github.io/pagoda-garden/voxel-garden/) | **The garden** — the 3D voxel pagoda scene, with day/night, weather, ambient audio, and zoom. Opens from the city view and remembers which city sent you. |
+| [`/proto/`](https://ogsapps.github.io/pagoda-garden/proto/) | Archive of the two losing style prototypes (silhouette parallax, sketchbook). |
 
 ## Controls
 
